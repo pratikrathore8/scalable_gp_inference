@@ -1,4 +1,4 @@
-from typing import Optional, Set, Union
+from typing import Any, Optional, Set, Union
 
 from rlaopt.models import LinSys
 from rlaopt.kernels import (
@@ -17,7 +17,7 @@ from .gp_inference_rhs import GPInferenceRHS
 
 
 class KernelLinSys(LinSys):
-    """Kernel linear system for Gaussian process inference."""
+    """Kernel ridge regression linear system."""
 
     def __init__(
         self,
@@ -92,6 +92,18 @@ class KernelLinSys(LinSys):
         if distributed:
             linop_kwargs.update({"devices": devices})
         return linop_class(**linop_kwargs)
+
+    def _check_inputs(
+        self,
+        A: Any,
+        B: Any,
+        reg: Any,
+        A_row_oracle: Optional[Any],
+        A_blk_oracle: Optional[Any],
+    ):
+        # Override the superclass method to avoid checking inputs
+        # The reason we do this is to avoid errors when B is a GPInferenceRHS instance
+        pass
 
     def _compute_internal_metrics(self, W: torch.Tensor):
         W_in = (
