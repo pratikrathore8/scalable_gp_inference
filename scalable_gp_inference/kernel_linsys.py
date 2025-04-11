@@ -1,6 +1,5 @@
-from typing import Any, Optional, Set, Union
+from typing import Optional, Set, Union
 
-from linear_operator.operators import CatLinearOperator
 from rlaopt.models import LinSys
 from rlaopt.kernels import (
     RBFLinOp,
@@ -21,10 +20,10 @@ class KernelLinSys(LinSys):
     def __init__(
         self,
         X: torch.Tensor,
-        B: Union[torch.Tensor, "CatLinearOperator"],
+        B: torch.Tensor,
         reg: float,
         kernel_type: str,
-        kernel_lengthscale: float,
+        kernel_lengthscale: Union[float, torch.Tensor],
         residual_tracking_idx: Optional[torch.Tensor] = None,
         distributed: Optional[bool] = False,
         devices: Optional[Set[torch.device]] = None,
@@ -33,10 +32,10 @@ class KernelLinSys(LinSys):
 
         Args:
             X (torch.Tensor): Input data.
-            B (Union[torch.Tensor, "CatLinearOperator"]): Right-hand side.
+            B (torch.Tensor): Right-hand side.
             reg (float): Regularization parameter.
             kernel_type (str): Type of kernel.
-            kernel_lengthscale (float): Lengthscale for the kernel.
+            kernel_lengthscale (Union[float, torch.Tensor]): Lengthscale for the kernel.
             residual_tracking_idx (Optional[torch.Tensor]): Residual tracking index.
             Defaults to None.
             distributed (bool): Whether to use distributed computation.
@@ -59,9 +58,6 @@ class KernelLinSys(LinSys):
         self.residual_tracking_idx = residual_tracking_idx
         self.B_eval = (
             B if residual_tracking_idx is None else B[:, self.residual_tracking_idx]
-        )
-        self.B_eval = (
-            self.B_eval.to_dense() if isinstance(B, CatLinearOperator) else self.B_eval
         )
 
     def _get_kernel_linop(
@@ -87,22 +83,10 @@ class KernelLinSys(LinSys):
         if devices is None:
             devices = set([X.device])
 
-        linop_kwargs = {"A": X, "kernel_params": {"sigma": kernel_lengthscale}}
+        linop_kwargs = {"A": X, "kernel_params": {"lengthscale": kernel_lengthscale}}
         if distributed:
             linop_kwargs.update({"devices": devices})
         return linop_class(**linop_kwargs)
-
-    def _check_inputs(
-        self,
-        A: Any,
-        B: Any,
-        reg: Any,
-        A_row_oracle: Optional[Any],
-        A_blk_oracle: Optional[Any],
-    ):
-        # Override the superclass method to avoid checking inputs
-        # The reason we do this is to avoid errors when B is a GPInferenceRHS instance
-        pass
 
     def _compute_internal_metrics(self, W: torch.Tensor):
         W_in = (
