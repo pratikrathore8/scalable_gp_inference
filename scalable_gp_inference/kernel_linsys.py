@@ -1,5 +1,6 @@
 from typing import Any, Optional, Set, Union
 
+from linear_operator.operators import CatLinearOperator
 from rlaopt.models import LinSys
 from rlaopt.kernels import (
     RBFLinOp,
@@ -13,8 +14,6 @@ from rlaopt.kernels import (
 )
 import torch
 
-from .gp_inference_rhs import GPInferenceRHS
-
 
 class KernelLinSys(LinSys):
     """Kernel ridge regression linear system."""
@@ -22,7 +21,7 @@ class KernelLinSys(LinSys):
     def __init__(
         self,
         X: torch.Tensor,
-        B: Union[torch.Tensor, "GPInferenceRHS"],
+        B: Union[torch.Tensor, "CatLinearOperator"],
         reg: float,
         kernel_type: str,
         kernel_lengthscale: float,
@@ -34,7 +33,7 @@ class KernelLinSys(LinSys):
 
         Args:
             X (torch.Tensor): Input data.
-            B (Union[torch.Tensor, "GPInferenceRHS"]): Right-hand side.
+            B (Union[torch.Tensor, "CatLinearOperator"]): Right-hand side.
             reg (float): Regularization parameter.
             kernel_type (str): Type of kernel.
             kernel_lengthscale (float): Lengthscale for the kernel.
@@ -62,7 +61,7 @@ class KernelLinSys(LinSys):
             B if residual_tracking_idx is None else B[:, self.residual_tracking_idx]
         )
         self.B_eval = (
-            self.B_eval.to_dense() if isinstance(B, GPInferenceRHS) else self.B_eval
+            self.B_eval.to_dense() if isinstance(B, CatLinearOperator) else self.B_eval
         )
 
     def _get_kernel_linop(
