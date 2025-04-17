@@ -3,6 +3,7 @@ from typing import Optional, Set, Union
 import torch
 from rlaopt.solvers import SolverConfig
 
+from .utils import _get_kernel_linop
 from .kernel_linsys import KernelLinSys
 
 
@@ -20,9 +21,9 @@ class GPInference:
         devices: Optional[Set[torch.device]] = None,
     ):
         self.Xtr = Xtr
-        self.ytr = ytr
+        self.ytr = ytr if ytr.ndim == 2 else ytr.unsqueeze(-1)
         self.Xtst = Xtst
-        self.ytst = ytst
+        self.ytst = ytst if ytst.ndim == 2 else ytst.unsqueeze(-1)
         self.likelihood_variance = likelihood_variance
         self.kernel_type = kernel_type
         self.kernel_lengthscale = kernel_lengthscale
@@ -40,11 +41,27 @@ class GPInference:
             devices=self.devices,
         )
 
-    def _callback_fn(self, W: torch.Tensor, linsys: KernelLinSys):
-        train_rmse = torch.sqrt(
-            1 / linsys.A.shape[0] * torch.sum((linsys.B - linsys.A @ W) ** 2)
+    def _get_tst_kernel_linop(self):
+        return _get_kernel_linop(
+            self.Xtst,
+            self.Xtr,
+            kernel_type=self.kernel_type,
+            kernel_lengthscale=self.kernel_lengthscale,
+            distributed=self.distributed,
+            devices=self.devices,
         )
-        return {"train_rmse": train_rmse.cpu().item()}
+
+    def _callback_fn(self, W: torch.Tensor, linsys: KernelLinSys, tst_kernel_linop):
+        train_rmse = torch.sqrt(
+            1 / self.ytr.shape[0] * torch.sum((self.ytr - linsys.A @ W) ** 2)
+        )
+        test_rmse = torch.sqrt(
+            1 / self.ytst.shape[0] * torch.sum((self.ytst - tst_kernel_linop @ W) ** 2)
+        )
+        return {
+            "train_rmse": train_rmse.cpu().item(),
+            "test_rmse": test_rmse.cpu().item(),
+        }
 
     def perform_inference(
         self,
@@ -57,13 +74,14 @@ class GPInference:
         if W_init is None:
             W_init = torch.zeros(self.X.shape[0], device=self.X.device)
 
-        linsys = self._get_linsys()
-        solution, log = linsys.solve(
+        training_linsys = self._get_linsys()
+        tst_kernel_linop = self._get_tst_kernel_linop()
+        solution, log = training_linsys.solve(
             solver_config=solver_config,
             W_init=W_init,
             callback_fn=self._callback_fn,
             callback_args=[],
-            callback_kwargs={},
+            callback_kwargs={"tst_kernel_linop": tst_kernel_linop},
             callback_freq=eval_freq,
             log_in_wandb=log_in_wandb,
             wandb_init_kwargs=wandb_init_kwargs,
