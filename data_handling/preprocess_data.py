@@ -66,9 +66,13 @@ def preprocess_datasets(normalize: bool = True,
             X_test = test_df.drop(columns=['label']).values.astype(np.float64)
             y_test = test_df['label'].values.astype(np.float64)
 
-            reshape_op = np.reshape(-1, 1) if target_rank == 2 else np.squeeze
-            y_train = reshape_op(y_train)
-            y_test = reshape_op(y_test)
+            if label_rank == 1:
+                y_train = y_train.squeeze()
+                y_test  = y_test.squeeze()
+
+            elif label_rank == 2:
+                y_train = y_train.reshape(-1, 1)
+                y_test  = y_test.reshape(-1, 1)
 
             # Apply normalization if requested
             if normalize:
@@ -111,4 +115,4 @@ def preprocess_datasets(normalize: bool = True,
 
 
 if __name__ == "__main__":
-    preprocess_datasets(normalization=True, normalization_method: str = 'z_score', label_rank: int = 2)
+    preprocess_datasets(normalize=True, normalization_method= 'z_score', label_rank= 2)
