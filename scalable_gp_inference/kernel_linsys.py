@@ -1,17 +1,9 @@
 from typing import Optional, Set, Union
 
 from rlaopt.models import LinSys
-from rlaopt.kernels import (
-    RBFLinOp,
-    DistributedRBFLinOp,
-    Matern12LinOp,
-    DistributedMatern12LinOp,
-    Matern32LinOp,
-    DistributedMatern32LinOp,
-    Matern52LinOp,
-    DistributedMatern52LinOp,
-)
 import torch
+
+from .utils import _get_kernel_linop
 
 
 class KernelLinSys(LinSys):
@@ -44,8 +36,8 @@ class KernelLinSys(LinSys):
             distributed computation. Defaults to None.
         """
         # Set up superclass
-        kernel_linop = self._get_kernel_linop(
-            X, kernel_type, kernel_lengthscale, distributed, devices
+        kernel_linop = _get_kernel_linop(
+            X, X, kernel_type, kernel_lengthscale, distributed, devices
         )
         super().__init__(
             A=kernel_linop,
@@ -59,34 +51,6 @@ class KernelLinSys(LinSys):
         self.B_eval = (
             B if residual_tracking_idx is None else B[:, self.residual_tracking_idx]
         )
-
-    def _get_kernel_linop(
-        self,
-        X: torch.Tensor,
-        kernel_type: str,
-        kernel_lengthscale: float,
-        distributed: bool,
-        devices: Optional[Set[torch.device]],
-    ):
-        """Get the kernel linear operator class based on the kernel type."""
-        if kernel_type == "rbf":
-            linop_class = DistributedRBFLinOp if distributed else RBFLinOp
-        elif kernel_type == "matern12":
-            linop_class = DistributedMatern12LinOp if distributed else Matern12LinOp
-        elif kernel_type == "matern32":
-            linop_class = DistributedMatern32LinOp if distributed else Matern32LinOp
-        elif kernel_type == "matern52":
-            linop_class = DistributedMatern52LinOp if distributed else Matern52LinOp
-        else:
-            raise ValueError(f"Unknown kernel type: {kernel_type}")
-
-        if devices is None:
-            devices = set([X.device])
-
-        linop_kwargs = {"A": X, "kernel_params": {"lengthscale": kernel_lengthscale}}
-        if distributed:
-            linop_kwargs.update({"devices": devices})
-        return linop_class(**linop_kwargs)
 
     def _compute_internal_metrics(self, W: torch.Tensor):
         W_in = (
