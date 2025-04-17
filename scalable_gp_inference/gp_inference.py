@@ -14,7 +14,7 @@ class GPInference:
         ytr: torch.Tensor,
         Xtst: torch.Tensor,
         ytst: torch.Tensor,
-        likelihood_variance: float,
+        noise_variance: float,
         kernel_type: str,
         kernel_lengthscale: Union[float, torch.Tensor],
         distributed: Optional[bool] = False,
@@ -24,7 +24,7 @@ class GPInference:
         self.ytr = ytr if ytr.ndim == 2 else ytr.unsqueeze(-1)
         self.Xtst = Xtst
         self.ytst = ytst if ytst.ndim == 2 else ytst.unsqueeze(-1)
-        self.likelihood_variance = likelihood_variance
+        self.noise_variance = noise_variance
         self.kernel_type = kernel_type
         self.kernel_lengthscale = kernel_lengthscale
         self.distributed = distributed
@@ -34,7 +34,7 @@ class GPInference:
         return KernelLinSys(
             X=self.Xtr,
             B=self.ytr,
-            reg=self.likelihood_variance,
+            reg=self.noise_variance,
             kernel_type=self.kernel_type,
             kernel_lengthscale=self.kernel_lengthscale,
             distributed=self.distributed,

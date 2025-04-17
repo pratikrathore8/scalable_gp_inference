@@ -39,7 +39,7 @@ def matern_random_features(
     # (Figure 1 in https://mlg.eng.cam.ac.uk/adrian/geometry.pdf
     # -- this requires care, since there are typos in the expression).
     # Sampling from the multivariate t-distribution can be performed
-    # using the normal and chi-squared distributions.
+    # using the normal and chi-square distributions.
     # See https://en.wikipedia.org/wiki/Multivariate_t-distribution for details.
     Y = (
         torch.randn(X.shape[1], num_features, device=X.device, dtype=X.dtype)
