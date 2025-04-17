@@ -56,4 +56,4 @@ def download_uci_datasets(split: int = 0,
 
 
 if __name__ == "__main__":
-    download_uci_datasets()
+    download_uci_datasets(split=0, dataset_names=None)
