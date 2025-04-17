@@ -69,10 +69,10 @@ class GPInference:
         W_init: Optional[torch.Tensor] = None,
         eval_freq: Optional[int] = 10,
         log_in_wandb: Optional[bool] = False,
-        wandb_init_kwargs: Optional[dict] = None,
+        wandb_init_kwargs: Optional[dict] = {},
     ):
         if W_init is None:
-            W_init = torch.zeros(self.X.shape[0], device=self.X.device)
+            W_init = torch.zeros(self.Xtr.shape[0], 1, device=self.Xtr.device)
 
         training_linsys = self._get_linsys()
         tst_kernel_linop = self._get_tst_kernel_linop()
