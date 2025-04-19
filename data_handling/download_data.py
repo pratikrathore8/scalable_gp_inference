@@ -38,6 +38,35 @@ def set_label_column(dataset_name: str):
 
     DATASET_CONFIGS[dataset_name]["label_columns"] = target_col
 
+def set_column_roles(dataset_name: str):
+    """Set label and ignore columns from metadata based on variable roles."""
+    metadata = get_metadata(dataset_name)
+    if not metadata:
+        raise ValueError(f"No metadata found for {dataset_name}")
+
+    variables = metadata.get("data", {}).get("variables", [])
+    label_columns = []
+    ignore_columns = []
+    roles_to_ignore = {'ID', 'Other', 'Ignore'}  # Define which roles to exclude
+
+    for var in variables:
+        var_name = var.get("name", "").strip()
+        if not var_name:
+            continue
+
+        role = var.get("role", "").strip()
+        if role == 'Target':
+            label_columns.append(var_name)
+        elif role in roles_to_ignore:
+            ignore_columns.append(var_name)
+
+    # Update dataset configuration
+    DATASET_CONFIGS[dataset_name]["label_columns"] = label_columns
+    DATASET_CONFIGS[dataset_name]["ignore_columns"] = ignore_columns
+
+    if not label_columns:
+        raise ValueError(f"No target columns found for {dataset_name}")
+
 
 def load_data_from_zip(dataset_dir):
     """Load data from downloaded zip file."""
@@ -55,18 +84,15 @@ def load_data_from_zip(dataset_dir):
 
 
 def create_dataframe(dataset_name: str, test_size: float):
-    """Main function to process and split datasets."""
+    """Process dataset while excluding non-feature columns."""
     dataset_dir = DATA_DIR / dataset_name
     dataset_dir.mkdir(parents=True, exist_ok=True)
 
-    # Set label column from metadata
-    set_label_col(dataset_name)
-    label_columns = DATASET_CONFIGS[dataset_name]["label_columns"]
-
-    if label_columns is None:
-        raise ValueError(f"Label columns not found for {dataset_name}")
-
+    # Get column roles from metadata
+    set_column_roles(dataset_name)
     config = DATASET_CONFIGS[dataset_name]
+    label_columns = config["label_columns"]
+    ignore_columns = config.get("ignore_columns", [])
 
     # Load data
     if config["data_url"]:
@@ -78,14 +104,14 @@ def create_dataframe(dataset_name: str, test_size: float):
             zip_ref.extractall(dataset_dir)
         data = load_data_from_zip(dataset_dir)
 
-    # Validate label column
-    for label_column in label_columns:
-        if label_column not in data.columns:
-            raise ValueError(
-                f"Label column '{label_column}' not found in data columns.")
+    # Validate columns
+    exclude_columns = label_columns + ignore_columns
+    for col in exclude_columns:
+        if col not in data.columns:
+            raise ValueError(f"Column '{col}' missing in {dataset_name} data")
 
     # Split data
-    x = data.drop(columns=label_columns)
+    x = data.drop(columns=exclude_columns)
     y = data[label_columns]
 
     x_train, x_test, y_train, y_test = train_test_split(
@@ -101,5 +127,6 @@ def create_dataframe(dataset_name: str, test_size: float):
     train_df.to_csv(dataset_dir / "train.csv", index=False)
     test_df.to_csv(dataset_dir / "test.csv", index=False)
 
-    print(f"Processed {dataset_name} | Train: {len(train_df)} | Test: {len(test_df)}")
+    print(
+        f"Processed {dataset_name} | Train: {len(train_df)} | Test: {len(test_df)}")
     return train_df, test_df
