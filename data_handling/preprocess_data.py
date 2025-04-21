@@ -1,24 +1,23 @@
+import torch
 import numpy as np
-import json
-from pathlib import Path
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from pathlib import Path
 
 DATA_DIR = Path("data")
-PROCESSED_DIR = Path("processed_data")
-PROCESSED_DIR.mkdir(exist_ok=True)
 
 
-def normalize_data_z_score(X_train, X_test, y_train, y_test):
+def normalize_data_z_score(x_train, x_test, y_train, y_test):
     """
     Normalize data using z-score normalization
     """
     # Feature normalization
-    mu_x = np.mean(X_train, axis=0)
-    sigma_x = np.std(X_train, axis=0)
+    mu_x = np.mean(x_train, axis=0)
+    sigma_x = np.std(x_train, axis=0)
     sigma_x[sigma_x == 0] = 1.0
 
-    X_train_norm = (X_train - mu_x) / sigma_x
-    X_test_norm = (X_test - mu_x) / sigma_x
+    x_train_norm = (x_train - mu_x) / sigma_x
+    x_test_norm = (x_test - mu_x) / sigma_x
 
     # Label normalization
     mu_y = np.mean(y_train)
@@ -28,91 +27,101 @@ def normalize_data_z_score(X_train, X_test, y_train, y_test):
     y_train_norm = (y_train - mu_y) / sigma_y
     y_test_norm = (y_test - mu_y) / sigma_y
 
-    return (X_train_norm, X_test_norm, y_train_norm, y_test_norm,
+    return (x_train_norm, x_test_norm, y_train_norm, y_test_norm,
             mu_x, sigma_x, mu_y, sigma_y)
 
 
-def preprocess_datasets(normalize: bool = True,
-                        normalization_method: str = 'z_score', label_rank: int = 2):
+def preprocess_dataset(
+        dataset_name: str,
+        target_rank: int,
+        normalize: bool,
+        normalization_method: str,
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        random_state: int = 42
+) -> dict:
     """
-    Preprocesses the datasets in DATA_DIR / dataset_name, saving the preprocessed data in
-     new directories PROCESSED_DIR / dataset_name.
+    Preprocesses the datasets in DATA_DIR / dataset_name and returns tensors directly in memory
 
-      Args:
-          normalization: Normalize the preprocessed data or not. Defaults to True.
+    Args:
+        dataset_name: Short name of dataset from DATASET_CONFIGS
 
-          normalization_method: Defaults to z score.
-
-          label_rank: Controls y's dimensionality for both the train and test datas.
-          We wither reshape y to be a column vector (shape (N, 1)) or squeeze the labels
+        label_rank: Controls y's dimensionality for both the train and test datas.
+          We either reshape y to be a column vector (shape (N, 1)) or squeeze the labels
           to become rank 1 arrays (shape (N,)). Some frameworks (e.g., PyTorch) might prefer targets
-           as 2D tensors for batch processing, so here it defaults to 2.
+           as 2D tensors for batch processing, so here it could be set to 2.
+
+        normalize: Whether to apply normalization or not
+
+        normalization_method: Only z-score is included here
+
+        device: Target device for tensors ('cpu' or 'cuda')
+
+        random_state: Random seed for reproducibility
+
+    Returns:
+        Dictionary containing:
+        - x_train, y_train: Training data tensors
+        - x_test, y_test: Test data tensors
+        - norm_params: Normalization parameters (if applied)
     """
-    for dataset_path in DATA_DIR.iterdir():
-        if not dataset_path.is_dir():
-            continue
+    dataset_dir = DATA_DIR / dataset_name
 
-        dataset_name = dataset_path.name
-        print(f"Preprocessing {dataset_name}...")
+    try:
+        # Load raw splits
+        train_df = pd.read_csv(dataset_dir / 'train.csv')
+        test_df = pd.read_csv(dataset_dir / 'test.csv')
 
-        try:
-            # Load data
-            train_df = pd.read_csv(dataset_path / 'train.csv')
-            test_df = pd.read_csv(dataset_path / 'test.csv')
+    except FileNotFoundError:
+        raise ValueError(f"Dataset {dataset_name} not found in {DATA_DIR}")
 
-            # Separate and reshape features and labels
-            X_train = train_df.drop(columns=['label']).values.astype(np.float64)
-            y_train = train_df['label'].values.astype(np.float64)
-            X_test = test_df.drop(columns=['label']).values.astype(np.float64)
-            y_test = test_df['label'].values.astype(np.float64)
+    # Separate and reshape features and labels
+    x_train = train_df.drop(columns=['target']).values.astype(np.float32)
+    y_train = train_df['target'].values.astype(np.float32)
+    x_test = test_df.drop(columns=['target']).values.astype(np.float32)
+    y_test = test_df['target'].values.astype(np.float32)
 
-            if label_rank == 1:
-                y_train = y_train.squeeze()
-                y_test  = y_test.squeeze()
+    if target_rank == 2:
+        y_train = y_train.reshape(-1, 1)
+        y_test = y_test.reshape(-1, 1)
+    else:
+        y_train = y_train.squeeze()
+        y_test = y_test.squeeze()
 
-            elif label_rank == 2:
-                y_train = y_train.reshape(-1, 1)
-                y_test  = y_test.reshape(-1, 1)
+    # Store normalization parameters
+    norm_params = None
 
-            # Apply normalization if requested
-            if normalize:
-                if normalization_method == 'z_score':
-                    (X_train_proc, X_test_proc, y_train_proc, y_test_proc,
-                     mu_x, sigma_x, mu_y, sigma_y) = normalize_data_z_score(
-                        X_train, X_test, y_train, y_test)
-                else:
-                    print(
-                        f"Normalization method {normalization_method} not supported")
+    # Apply normalization if requested
+    if normalize:
+        if normalization_method == 'z_score':
+            (x_train_proc, x_test_proc, y_train_proc, y_test_proc,
+             mu_x, sigma_x, mu_y, sigma_y) = normalize_data_z_score(
+                x_train, x_test, y_train, y_test)
+        else:
+            print(
+                f"Normalization method {normalization_method} not supported")
 
-            else:
-                X_train_proc, X_test_proc = X_train, X_test
-                y_train_proc, y_test_proc = y_train, y_test
+    else:
+        x_train_proc, x_test_proc = x_train, x_test
+        y_train_proc, y_test_proc = y_train, y_test
 
-            # Create processed directory
-            processed_dir = PROCESSED_DIR / dataset_name
-            processed_dir.mkdir(parents=True, exist_ok=True)
+        norm_params = {
+            'mu_x': mu_x,
+            'sigma_x': sigma_x,
+            'mu_y': mu_y,
+            'sigma_y': sigma_y
+        }
 
-            # Save processed data
-            np.save(processed_dir / 'X_train.npy', X_train_proc)
-            np.save(processed_dir / 'y_train.npy', y_train_proc)
-            np.save(processed_dir / 'X_test.npy', X_test_proc)
-            np.save(processed_dir / 'y_test.npy', y_test_proc)
+    # Convert to tensors and move to device
+    data_dict = {
+        'x_train': torch.as_tensor(x_train_proc, device=device),
+        'y_train': torch.as_tensor(y_train_proc, device=device),
+        'x_test': torch.as_tensor(x_test_proc, device=device),
+        'y_test': torch.as_tensor(y_test_proc, device=device),
+        'norm_params': norm_params
+    }
 
-            # Save normalization parameters if normalized (only supports z_score at the moment)
-            if normalize and normalization_method == 'z_score':
-                params = {
-                    'mu_x': mu_x.tolist(),
-                    'sigma_x': sigma_x.tolist(),
-                    'mu_y': mu_y.item(),
-                    'sigma_y': sigma_y.item()
-                }
-                with open(processed_dir / 'params.json', 'w') as f:
-                    json.dump(params, f)
+    print(f"Training samples: {len(data['x_train'])}")
+    print(f"Test samples: {len(data['x_test'])}")
+    print(f"Device: {data['x_train'].device}")
 
-            print(f"Processed {dataset_name} saved to {processed_dir}")
-        except Exception as e:
-            print(f"Error processing {dataset_name}: {e}")
-
-
-if __name__ == "__main__":
-    preprocess_datasets(normalize=True, normalization_method= 'z_score', label_rank= 2)
+    return data_dict
