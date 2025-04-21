@@ -17,8 +17,8 @@ def _random_features(
     return scale_factor * torch.cos(X @ Omega + B)
 
 
-def rbf_random_features(
-    X: torch.Tensor, lengthscale: Union[float, torch.Tensor], num_features: int
+def _rbf_random_features(
+    X: torch.Tensor, num_features: int, lengthscale: Union[float, torch.Tensor]
 ) -> torch.Tensor:
     safe_lengthscale = _get_safe_lengthscale(lengthscale)
     Omega = (
@@ -28,10 +28,10 @@ def rbf_random_features(
     return _random_features(X, num_features, Omega)
 
 
-def matern_random_features(
+def _matern_random_features(
     X: torch.Tensor,
-    lengthscale: Union[float, torch.Tensor],
     num_features: int,
+    lengthscale: Union[float, torch.Tensor],
     nu: float,
 ) -> torch.Tensor:
     safe_lengthscale = _get_safe_lengthscale(lengthscale)
@@ -51,3 +51,21 @@ def matern_random_features(
     u = Chi2(df).sample(sample_shape=(num_features,)).squeeze(-1)
     Omega = torch.sqrt(df) * Y / torch.sqrt(u)
     return _random_features(X, num_features, Omega)
+
+
+def get_random_features(
+    X: torch.Tensor,
+    num_features: int,
+    lengthscale: Union[float, torch.Tensor],
+    kernel_type: str,
+) -> torch.Tensor:
+    if kernel_type == "rbf":
+        return _rbf_random_features(X, num_features, lengthscale)
+    elif kernel_type == "matern12":
+        return _matern_random_features(X, num_features, lengthscale, nu=0.5)
+    elif kernel_type == "matern32":
+        return _matern_random_features(X, num_features, lengthscale, nu=1.5)
+    elif kernel_type == "matern52":
+        return _matern_random_features(X, num_features, lengthscale, nu=2.5)
+    else:
+        raise ValueError(f"Unknown kernel type: {kernel_type}")

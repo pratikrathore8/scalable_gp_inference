@@ -3,8 +3,9 @@ from typing import Optional, Set, Union
 import torch
 from rlaopt.solvers import SolverConfig
 
-from .utils import _get_kernel_linop
 from .kernel_linsys import KernelLinSys
+from .random_features import get_random_features
+from .utils import _get_kernel_linop, _safe_unsqueeze
 
 
 class GPInference:
@@ -19,21 +20,66 @@ class GPInference:
         kernel_lengthscale: Union[float, torch.Tensor],
         distributed: Optional[bool] = False,
         devices: Optional[Set[torch.device]] = None,
+        num_posterior_samples: Optional[int] = 0,
+        num_random_features: Optional[int] = 0,
     ):
         self.Xtr = Xtr
-        self.ytr = ytr if ytr.ndim == 2 else ytr.unsqueeze(-1)
+        self.ytr = ytr
         self.Xtst = Xtst
-        self.ytst = ytst if ytst.ndim == 2 else ytst.unsqueeze(-1)
+        self.ytst = ytst
         self.noise_variance = noise_variance
         self.kernel_type = kernel_type
         self.kernel_lengthscale = kernel_lengthscale
         self.distributed = distributed
         self.devices = devices
+        self.num_posterior_samples = num_posterior_samples
+        self.num_random_features = num_random_features
+        (
+            self.Xtr_prior_samples,
+            self.Xtst_prior_samples,
+        ) = self._get_approx_prior_samples()
+
+    def _get_approx_prior_samples(self):
+        if self.num_posterior_samples > 0 and self.num_random_features > 0:
+            X = torch.cat((self.Xtr, self.Xtst), dim=0)
+            Xtr_prior_samples = torch.zeros(
+                self.Xtr.shape[0], self.num_posterior_samples
+            )
+            Xtst_prior_samples = torch.zeros(
+                self.Xtst.shape[0], self.num_posterior_samples
+            )
+
+            # TODO(pratik): eventually vectorize over the posterior samples
+            for i in range(self.num_posterior_samples):
+                X_featurized = get_random_features(
+                    X,
+                    num_features=self.num_random_features,
+                    lengthscale=self.kernel_lengthscale,
+                    kernel_type=self.kernel_type,
+                )
+                w = torch.randn(X_featurized.shape[1], device=X.device, dtype=X.dtype)
+                prior_samples = X_featurized @ w
+                Xtr_prior_samples[:, i] = prior_samples[: self.Xtr.shape[0]] + (
+                    self.noise_variance**0.5
+                ) * torch.randn(
+                    self.Xtr.shape[0], device=self.Xtr.device, dtype=self.Xtr.dtype
+                )
+                Xtst_prior_samples[:, i] = prior_samples[self.Xtr.shape[0] :]
+            return Xtr_prior_samples, Xtst_prior_samples
+        return (None,) * 2
 
     def _get_linsys(self):
+        if self.Xtr_prior_samples > 0:
+            B = torch.cat(
+                (_safe_unsqueeze(self.ytr), _safe_unsqueeze(self.Xtr_prior_samples)),
+                dim=1,
+            )
+        else:
+            B = _safe_unsqueeze(self.ytr)
+
         return KernelLinSys(
             X=self.Xtr,
-            B=self.ytr,
+            B=B,
             reg=self.noise_variance,
             kernel_type=self.kernel_type,
             kernel_lengthscale=self.kernel_lengthscale,
