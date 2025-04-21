@@ -96,8 +96,8 @@ def columns_are_numeric(cols):
     return True
 
 
-def create_dataframe(dataset_name: str, test_size: float):
-    """Process dataset while excluding non-feature columns."""
+def create_dataframe(dataset_name: str):
+    """Download the dataset, organize and assign the header labels, and save as a dataframe"""
     dataset_dir = DATA_DIR / dataset_name
     dataset_dir.mkdir(parents=True, exist_ok=True)
 
@@ -105,6 +105,8 @@ def create_dataframe(dataset_name: str, test_size: float):
     set_column_roles(dataset_name)
     config = DATASET_CONFIGS[dataset_name]
     target_columns = config["target_columns"]
+    num_instances = config["num_instances"]
+    num_features = config["num_features"]
     ignore_columns = config.get("ignore_columns", [])
 
     # Load data
@@ -126,34 +128,17 @@ def create_dataframe(dataset_name: str, test_size: float):
             columns=data.columns
         )
 
-    # Validate columns
-    exclude_columns = target_columns + ignore_columns
-    for col in exclude_columns:
-        if col not in data.columns:
-            raise ValueError(f"Column '{col}' missing in {dataset_name} data")
-
-    # Split data
-    x = data.drop(columns=exclude_columns)
+    # create full dataframe
+    x = data.drop(columns=target_columns)
     y = data[target_columns]
 
-    x_train, x_test, y_train, y_test = train_test_split(
-        x, y, test_size=test_size, random_state=42
-    )
+    full_df = x.copy()
+    full_df["target"] = y
 
-    # Save splits
-    train_df = x_train.copy()
-    train_df["target"] = y_train
-    test_df = x_test.copy()
-    test_df["target"] = y_test
-
-    train_df.to_csv(dataset_dir / "train.csv", index=False)
-    test_df.to_csv(dataset_dir / "test.csv", index=False)
+    full_df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
 
     print(
-        f"Processed {dataset_name} | Train: {len(train_df)} | Test: {len(test_df)}")
-    return train_df, test_df
+        f"Processed {dataset_name} | Number of instances: {num_instances} | Number of features: {num_features}")
+    print(f"Columns to drop: {ignore_columns}")
 
-
-# Example usage
-if __name__ == "__main__":
-    create_dataframe("song", test_size=0.1)
+    return full_df
