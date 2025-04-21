@@ -2,36 +2,19 @@ import torch
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from pathlib import Path
+from uci_datasets_configs import DATA_DIR
 
-
-def normalize_data_z_score(x_train, x_test, y_train, y_test):
-    """
-    Normalize data using z-score normalization
-    """
-    # Feature normalization
-    mu_x = np.mean(x_train, axis=0)
-    sigma_x = np.std(x_train, axis=0)
-    sigma_x[sigma_x == 0] = 1.0
-
-    x_train_norm = (x_train - mu_x) / sigma_x
-    x_test_norm = (x_test - mu_x) / sigma_x
-
-    # Label normalization
-    mu_y = np.mean(y_train)
-    sigma_y = np.std(y_train)
-    sigma_y = 1.0 if sigma_y == 0 else sigma_y
-
-    y_train_norm = (y_train - mu_y) / sigma_y
-    y_test_norm = (y_test - mu_y) / sigma_y
-
-    return (x_train_norm, x_test_norm, y_train_norm, y_test_norm,
-            mu_x, sigma_x, mu_y, sigma_y)
-
-
-
-def preprocess_dataset(dataset_name: str, test_split_ratio: float, target_rank: int,
-    normalize: bool, normalization_method: str, device: str, random_state: int = 42) -> dict:
+def preprocess_dataset(
+    dataset_name: str,
+    test_split_ratio: float,
+    target_rank: int,
+    normalize: bool,
+    normalization_method: str,
+    device: str,
+    random_state: int = 42
+) -> dict:
 
     """
     Preprocesses the datasets in DATA_DIR / dataset_name and returns tensors directly in memory
@@ -104,30 +87,30 @@ def preprocess_dataset(dataset_name: str, test_split_ratio: float, target_rank: 
         y_train = y_train.squeeze()
         y_test  = y_test.squeeze()
 
-    # Store normalization parameters
-    norm_params = None
+    # Initialize normalization parameters
+    normalization_params = None
+    x_scaler, y_scaler = None, None
 
-    # Apply normalization if requested
     if normalize:
         if normalization_method == 'z_score':
-            (x_train_proc, x_test_proc, y_train_proc, y_test_proc,
-              mu_x, sigma_x, mu_y, sigma_y) = normalize_data_z_score(
-                x_train, x_test, y_train, y_test)
+            # Feature normalization
+            x_scaler = StandardScaler()
+            x_train_proc = x_scaler.fit_transform(x_train)
+            x_test_proc = x_scaler.transform(x_test)
+
+            # Target normalization
+            y_scaler = StandardScaler()
+            y_train_proc = y_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
+            y_test_proc = y_scaler.transform(y_test.reshape(-1, 1)).flatten()
+
+            # Store parameters
+            normalization_params = {
+                'x_scaler': x_scaler,
+                'y_scaler': y_scaler
+            }
         else:
-            print(
-                f"Normalization method {normalization_method} not supported")
+            print(f"Unsupported normalization method: {normalization_method}")
 
-    else:
-        x_train_proc, x_test_proc = x_train, x_test
-        y_train_proc, y_test_proc = y_train, y_test
-
-
-        norm_params = {
-            'mu_x': mu_x,
-            'sigma_x': sigma_x,
-            'mu_y': mu_y,
-            'sigma_y': sigma_y
-        }
 
     # Convert to tensors and move to device
     data_dict = {
@@ -135,12 +118,12 @@ def preprocess_dataset(dataset_name: str, test_split_ratio: float, target_rank: 
         'y_train': torch.as_tensor(y_train_proc, device=device),
         'x_test': torch.as_tensor(x_test_proc, device=device),
         'y_test': torch.as_tensor(y_test_proc, device=device),
-        'norm_params': norm_params
+        'normalization_params': normalization_params
     }
 
-    print(f"Number of training samples for {dataset_name}: {len(data['x_train'])}")
-    print(f"Number of test samples for {dataset_name}: {len(data['x_test'])}")
-    print(f"Device: {data['x_train'].device}")
+    print(f"Number of training samples for {dataset_name}: {len(data_dict['x_train'])}")
+    print(f"Number of test samples for {dataset_name}: {len(data_dict['x_test'])}")
+    print(f"Device: {data_dict['x_train'].device}")
 
     return data_dict
 
