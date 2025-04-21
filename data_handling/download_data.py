@@ -10,7 +10,7 @@ import ssl
 import certifi
 import json
 from urllib.request import urlopen
-from uci_configs import DATASET_CONFIGS
+from uci_datasets_configs import DATA_DIR, DATASET_CONFIGS
 
 
 def get_metadata(dataset_name: str):
