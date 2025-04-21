@@ -45,10 +45,16 @@ class GPInference:
         if self.num_posterior_samples > 0 and self.num_random_features > 0:
             X = torch.cat((self.Xtr, self.Xtst), dim=0)
             Xtr_prior_samples = torch.zeros(
-                self.Xtr.shape[0], self.num_posterior_samples
+                self.Xtr.shape[0],
+                self.num_posterior_samples,
+                device=self.Xtr.device,
+                dtype=self.Xtr.dtype,
             )
             Xtst_prior_samples = torch.zeros(
-                self.Xtst.shape[0], self.num_posterior_samples
+                self.Xtst.shape[0],
+                self.num_posterior_samples,
+                device=self.Xtst.device,
+                dtype=self.Xtst.dtype,
             )
 
             # TODO(pratik): eventually vectorize over the posterior samples
@@ -71,7 +77,7 @@ class GPInference:
         return (None,) * 2
 
     def _get_linsys(self):
-        if self.Xtr_prior_samples > 0:
+        if self.Xtr_prior_samples is not None:
             B = torch.cat(
                 (_safe_unsqueeze(self.ytr), _safe_unsqueeze(self.Xtr_prior_samples)),
                 dim=1,
@@ -99,11 +105,14 @@ class GPInference:
             devices=self.devices,
         )
 
-    def _compute_nll(means: torch.Tensor, variances: torch.Tensor, locs: torch.Tensor):
+    def _compute_nll(
+        self, means: torch.Tensor, variances: torch.Tensor, locs: torch.Tensor
+    ):
+        print("Computing NLL")
         n = means.shape[0]
         log_variances = torch.log(variances)
         nll = 0.5 * (
-            (locs - means) ** 2 / variances
+            torch.sum((locs - means) ** 2 / variances)
             + torch.sum(log_variances)
             + n * torch.log(torch.tensor(2 * torch.pi))
         )
@@ -132,7 +141,7 @@ class GPInference:
             )  # Useful for sanity checking with test_mean
             test_posterior_samples_var = test_posterior_samples.var(dim=1)
             test_posterior_samples_nll = self._compute_nll(
-                means=test_posterior_samples_mean,
+                means=test_mean,  # Use the posterior mean without posterior sampling
                 variances=test_posterior_samples_var,
                 locs=self.ytst,
             )
