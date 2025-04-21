@@ -13,7 +13,7 @@ DATASET_CONFIGS = {
         "target_columns": None,
         "ignore_columns": []
     },
-    "elevators": { # Needs Clarification. This is not from the UCI repo.
+    "elevators": { # Needs Clarification: This dataset cannot be found in the UCI repo.
         "id": None,
         "download_url": None,
         "data_url": None,
@@ -40,7 +40,7 @@ DATASET_CONFIGS = {
         "target_columns": ["RMSD"],
         "ignore_columns": []
     },
-    "keggdir": {
+    "keggdir": { # Needs Clarification: Not clear (in Lin et al.) which feature is set as target and which columns are dropped.
         "id": "220",
         "download_url": "https://archive.ics.uci.edu/static/public/220/kegg+metabolic+relation+network+directed.zip",
         "data_url": None,
@@ -67,12 +67,12 @@ DATASET_CONFIGS = {
         "target_columns": [0],
         "ignore_columns": []
     },
-    "buzz": {
+    "buzz": { # Needs Clarification: See https://lig-aptikal.imag.fr/buzz-prediction-in-online-social-media/
         "id": "248",
         "download_url": "https://archive.ics.uci.edu/static/public/248/buzz+in+social+media.zip",
         "data_url": None,
         "num_instances": 140000,
-        "num_features": 0,      # See https://lig-aptikal.imag.fr/buzz-prediction-in-online-social-media/ and https://chatgpt.com/c/6805db8b-a0c8-800e-bad6-dc2c0e678a8e
+        "num_features": 0,     
         "target_columns": None,
         "ignore_columns": []
     },
