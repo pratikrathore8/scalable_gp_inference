@@ -13,13 +13,10 @@ import subprocess
 import bz2
 import lzma
 import shutil
-import qml
 from scipy.io import savemat
 from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
-from uci_datasets_configs import DATA_DIR, DATASET_CONFIGS
-
-
+from dataset_configs import DATA_DIR, DATASET_CONFIGS
 
 def get_metadata(dataset_name: str):
     """Fetch dataset metadata from UCI API."""
@@ -34,6 +31,7 @@ def get_metadata(dataset_name: str):
     except Exception as e:
         print(f"Error fetching metadata for {dataset_name}: {e}")
         return None
+
 
 def load_data_from_zip(dataset_dir):
     """Load data from downloaded zip file."""
@@ -155,7 +153,8 @@ def create_dataframe(dataset_name: str):
         # Load data
         if config["data_url"]:
             response = requests.get(config["data_url"])
-            data = pd.read_csv(BytesIO(response.content))
+            data = pd.read_csv(BytesIO(response.content), na_values=['?'])
+            data = data.dropna()
         else:
             response = requests.get(config["download_url"])
             with zipfile.ZipFile(BytesIO(response.content)) as zip_ref:
@@ -179,9 +178,13 @@ def create_dataframe(dataset_name: str):
         df["target"] = y
 
         df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
-    
+
         print(
             f"Processed {dataset_name} | Number of instances: {num_instances} | Number of features: {num_features}")
         print(f"Columns to drop: {ignore_columns}")
 
         return df
+
+
+if __name__ == "__main__":
+    create_dataframe("malonaldehyde")
