@@ -59,6 +59,17 @@ class GPHparams:
         if self.noise_variance < 0:
             raise ValueError("noise_variance must be non-negative")
 
+    def __add__(self, other: "GPHparams") -> "GPHparams":
+        """Add two GPHparams instances, returning a new instance."""
+        if not isinstance(other, GPHparams):
+            raise TypeError(f"Cannot add type {type(other).__name__} to GPHparams")
+
+        return GPHparams(
+            signal_variance=self.signal_variance + other.signal_variance,
+            kernel_lengthscale=self.kernel_lengthscale + other.kernel_lengthscale,
+            noise_variance=self.noise_variance + other.noise_variance,
+        )
+
 
 def train_exact_gp(
     Xtr: torch.Tensor,
@@ -66,7 +77,7 @@ def train_exact_gp(
     kernel_type: str,
     opt_hparams: dict,
     training_iters: int,
-):
+) -> GPHparams:
     # initialize likelihood and model
     likelihood = GaussianLikelihood()
 
