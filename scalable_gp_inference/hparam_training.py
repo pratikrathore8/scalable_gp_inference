@@ -70,6 +70,21 @@ class GPHparams:
             noise_variance=self.noise_variance + other.noise_variance,
         )
 
+    def __truediv__(self, scalar: float | int) -> "GPHparams":
+        """Divide GPHparams by a scalar value."""
+        if not isinstance(scalar, (int, float)):
+            raise TypeError(f"Cannot divide GPHparams by type {type(scalar).__name__}")
+
+        if scalar == 0:
+            raise ZeroDivisionError("Cannot divide GPHparams by zero")
+
+        # Divide each parameter by the scalar
+        return GPHparams(
+            signal_variance=self.signal_variance / scalar,
+            kernel_lengthscale=self.kernel_lengthscale / scalar,
+            noise_variance=self.noise_variance / scalar,
+        )
+
 
 def train_exact_gp(
     Xtr: torch.Tensor,
