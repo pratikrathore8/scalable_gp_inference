@@ -4,13 +4,21 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import zipfile
-from sklearn.model_selection import train_test_split
 from io import BytesIO
 import ssl
 import certifi
 import json
 from urllib.request import urlopen
+import subprocess
+import bz2
+import lzma
+import shutil
+import qml
+from scipy.io import savemat
+from sklearn.datasets import fetch_openml
+from sklearn.model_selection import train_test_split
 from uci_datasets_configs import DATA_DIR, DATASET_CONFIGS
+
 
 
 def get_metadata(dataset_name: str):
@@ -100,45 +108,80 @@ def create_dataframe(dataset_name: str):
     """Download the dataset, organize and assign the header labels, and save as a dataframe"""
     dataset_dir = DATA_DIR / dataset_name
     dataset_dir.mkdir(parents=True, exist_ok=True)
-
-    # Get column roles from metadata
-    set_column_roles(dataset_name)
     config = DATASET_CONFIGS[dataset_name]
-    target_columns = config["target_columns"]
+    source = config["source"]
     num_instances = config["num_instances"]
     num_features = config["num_features"]
-    ignore_columns = config.get("ignore_columns", [])
 
-    # Load data
-    if config["data_url"]:
-        response = requests.get(config["data_url"])
-        data = pd.read_csv(BytesIO(response.content))
-    else:
+    if source == "openml":
+        data, target = fetch_openml(data_id=config["id"], return_X_y=True,
+                                    as_frame=True)
+        df = pd.DataFrame(data)
+        df["target"] = target
+        df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
+
+        print(
+            f"Processed {dataset_name} | Number of instances: {num_instances} | Number of features: {num_features}")
+
+        return df
+
+    elif source == "sgdml":
         response = requests.get(config["download_url"])
-        with zipfile.ZipFile(BytesIO(response.content)) as zip_ref:
-            zip_ref.extractall(dataset_dir)
-        data = load_data_from_zip(dataset_dir)
+        npz_data = np.load(BytesIO(response.content))
 
-    # Check if columns are numeric strings and reset if necessary
-    if columns_are_numeric(data.columns.astype(str)):
-        new_row = data.columns.to_numpy()
-        data.columns = range(data.shape[1])
-        data = pd.DataFrame(
-            np.vstack([new_row, data.to_numpy()]),
-            columns=data.columns
-        )
+        # Process molecule (from fast_krr github repo: _process_molecule)
+        R = npz_data["R"]
+        X = np.sum((R[:, :, np.newaxis, :] - R[:, np.newaxis, :, :]) ** 2,
+                   axis=-1) ** 0.5
+        X = X[:, np.triu_indices(R.shape[1], 1)[0],
+            np.triu_indices(R.shape[1], 1)[1]] ** -1.0
 
-    # create full dataframe
-    x = data.drop(columns=target_columns)
-    y = data[target_columns]
+        y = npz_data["E"].squeeze()
+        df = pd.DataFrame(X, columns=[f"feat_{i}" for i in range(X.shape[1])])
+        df["target"] = y
+        df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
 
-    full_df = x.copy()
-    full_df["target"] = y
+        print(
+            f"Processed {dataset_name} | Number of instances: {num_instances} | Number of features: {num_features}")
 
-    full_df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
+        return df
 
-    print(
-        f"Processed {dataset_name} | Number of instances: {num_instances} | Number of features: {num_features}")
-    print(f"Columns to drop: {ignore_columns}")
+    else:
+        # Get column roles from metadata
+        set_column_roles(dataset_name)
+        target_columns = config["target_columns"]
+        ignore_columns = config.get("ignore_columns", [])
 
-    return full_df
+        # Load data
+        if config["data_url"]:
+            response = requests.get(config["data_url"])
+            data = pd.read_csv(BytesIO(response.content))
+        else:
+            response = requests.get(config["download_url"])
+            with zipfile.ZipFile(BytesIO(response.content)) as zip_ref:
+                zip_ref.extractall(dataset_dir)
+            data = load_data_from_zip(dataset_dir)
+
+        # Check if columns are numeric strings and reset if necessary
+        if columns_are_numeric(data.columns.astype(str)):
+            new_row = data.columns.to_numpy()
+            data.columns = range(data.shape[1])
+            data = pd.DataFrame(
+                np.vstack([new_row, data.to_numpy()]),
+                columns=data.columns
+            )
+
+        # create full dataframe
+        x = data.drop(columns=target_columns)
+        y = data[target_columns]
+
+        df = x.copy()
+        df["target"] = y
+
+        df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
+    
+        print(
+            f"Processed {dataset_name} | Number of instances: {num_instances} | Number of features: {num_features}")
+        print(f"Columns to drop: {ignore_columns}")
+
+        return df
