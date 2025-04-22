@@ -106,9 +106,15 @@ class GPInference:
         )
 
     def _compute_nll(
-        self, means: torch.Tensor, variances: torch.Tensor, locs: torch.Tensor
+        self,
+        means: torch.Tensor,
+        variances: torch.Tensor,
+        locs: torch.Tensor,
+        add_noise_variance: bool = True,
     ):
-        print("Computing NLL")
+        if add_noise_variance:
+            variances += self.noise_variance
+
         n = means.shape[0]
         log_variances = torch.log(variances)
         nll = 0.5 * (
