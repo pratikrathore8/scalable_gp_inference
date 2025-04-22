@@ -1,6 +1,5 @@
-from typing import Optional, Set, Union
-
 from rlaopt.models import LinSys
+from rlaopt.kernels import KernelConfig
 import torch
 
 from .utils import _get_kernel_linop
@@ -15,10 +14,10 @@ class KernelLinSys(LinSys):
         B: torch.Tensor,
         reg: float,
         kernel_type: str,
-        kernel_lengthscale: Union[float, torch.Tensor],
-        residual_tracking_idx: Optional[torch.Tensor] = None,
-        distributed: Optional[bool] = False,
-        devices: Optional[Set[torch.device]] = None,
+        kernel_config: KernelConfig,
+        residual_tracking_idx: torch.Tensor | None = None,
+        distributed: bool = False,
+        devices: set[torch.device] | None = None,
     ):
         """Initialize KernelLinSys model.
 
@@ -27,17 +26,18 @@ class KernelLinSys(LinSys):
             B (torch.Tensor): Right-hand side.
             reg (float): Regularization parameter.
             kernel_type (str): Type of kernel.
-            kernel_lengthscale (Union[float, torch.Tensor]): Lengthscale for the kernel.
-            residual_tracking_idx (Optional[torch.Tensor]): Residual tracking index.
+            kernel_config (KernelConfig): Kernel configuration.
+            residual_tracking_idx (torch.Tensor | None): Indices of columns of B to
+            track for termination. If None, all columns are tracked.
             Defaults to None.
             distributed (bool): Whether to use distributed computation.
             Defaults to False.
-            devices (Optional[Set[torch.device]]): Set of devices for
-            distributed computation. Defaults to None.
+            devices (set[torch.device] | None): Set of devices to use for distributed
+            computation. Defaults to None.
         """
         # Set up superclass
         kernel_linop = _get_kernel_linop(
-            X, X, kernel_type, kernel_lengthscale, distributed, devices
+            X, X, kernel_type, kernel_config, distributed, devices
         )
         super().__init__(
             A=kernel_linop,
