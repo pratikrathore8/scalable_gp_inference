@@ -2,6 +2,7 @@ from typing import Optional, Set, Union
 
 
 from rlaopt.solvers import SolverConfig
+from rlaopt.kernels import KernelConfig
 import torch
 
 from .kernel_linsys import KernelLinSys
@@ -17,6 +18,7 @@ class GPInference:
         Xtst: torch.Tensor,
         ytst: torch.Tensor,
         noise_variance: float,
+        signal_variance: float,
         kernel_type: str,
         kernel_lengthscale: Union[float, torch.Tensor],
         distributed: Optional[bool] = False,
@@ -31,7 +33,9 @@ class GPInference:
         self.ytst = ytst
         self.noise_variance = noise_variance
         self.kernel_type = kernel_type
-        self.kernel_lengthscale = kernel_lengthscale
+        self.kernel_config = KernelConfig(
+            const_scaling=signal_variance, lengthscale=kernel_lengthscale
+        )
         self.distributed = distributed
         self.devices = devices
         self.num_posterior_samples = num_posterior_samples
@@ -62,7 +66,7 @@ class GPInference:
                 X_featurized = get_random_features(
                     X,
                     num_features=self.num_random_features,
-                    lengthscale=self.kernel_lengthscale,
+                    kernel_config=self.kernel_config,
                     kernel_type=self.kernel_type,
                 )
                 w = torch.randn(X_featurized.shape[1], device=X.device, dtype=X.dtype)
@@ -90,7 +94,7 @@ class GPInference:
             B=B,
             reg=self.noise_variance,
             kernel_type=self.kernel_type,
-            kernel_lengthscale=self.kernel_lengthscale,
+            kernel_config=self.kernel_config,
             distributed=self.distributed,
             devices=self.devices,
         )
@@ -100,7 +104,7 @@ class GPInference:
             self.Xtst,
             self.Xtr,
             kernel_type=self.kernel_type,
-            kernel_lengthscale=self.kernel_lengthscale,
+            kernel_config=self.kernel_config,
             distributed=self.distributed,
             devices=self.devices,
         )

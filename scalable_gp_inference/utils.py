@@ -9,6 +9,7 @@ from rlaopt.kernels import (
     DistributedMatern32LinOp,
     Matern52LinOp,
     DistributedMatern52LinOp,
+    KernelConfig,
 )
 import torch
 
@@ -29,7 +30,7 @@ def _get_kernel_linop(
     X: torch.Tensor,
     Y: torch.Tensor,
     kernel_type: str,
-    kernel_lengthscale: float,
+    kernel_config: KernelConfig,
     distributed: bool,
     devices: Optional[Set[torch.device]] = None,
 ):
@@ -43,23 +44,12 @@ def _get_kernel_linop(
     linop_kwargs = {
         "A1": X,
         "A2": Y,
-        "kernel_params": {"lengthscale": kernel_lengthscale},
+        "kernel_config": kernel_config,
     }
     if distributed:
         devices = set([X.device]) if devices is None else devices
         linop_kwargs.update({"devices": devices})
     return linop_class(**linop_kwargs)
-
-
-def _get_kernel_diag(
-    X: torch.Tensor,
-    kernel_type: str,
-    kernel_lengthscale: float,
-):
-    if kernel_type in ["rbf", "matern12", "matern32", "matern52"]:
-        return torch.ones(X.shape[0], device=X.device, dtype=X.dtype)
-    else:
-        raise ValueError(f"Unknown kernel type: {kernel_type}")
 
 
 def _safe_unsqueeze(tensor: torch.Tensor) -> torch.Tensor:
