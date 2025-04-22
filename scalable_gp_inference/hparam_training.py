@@ -70,6 +70,14 @@ class GPHparams:
             noise_variance=self.noise_variance + other.noise_variance,
         )
 
+    def __iadd__(self, other: "GPHparams") -> "GPHparams":
+        """'In-place' addition of two GPHparams instances.
+
+        This is not a standard in-place operation, but rather a
+        convenience method to allow for a more intuitive syntax.
+        """
+        return self + other
+
     def __truediv__(self, scalar: float | int) -> "GPHparams":
         """Divide GPHparams by a scalar value."""
         if not isinstance(scalar, (int, float)):
@@ -86,7 +94,7 @@ class GPHparams:
         )
 
 
-def train_exact_gp(
+def _train_exact_gp(
     Xtr: torch.Tensor,
     ytr: torch.Tensor,
     kernel_type: str,
@@ -137,3 +145,57 @@ def train_exact_gp(
         ),  # get rid of the extra dimension
         noise_variance=likelihood.noise.item(),
     )
+
+
+def _get_subsample_centroid(
+    Xtr: torch.Tensor, ytr: torch.Tensor, subsample_size: int
+) -> tuple[torch.Tensor, torch.Tensor]:
+    # randomly sample a point from the training set
+    idx = torch.randint(0, Xtr.shape[0], (1,))
+    centroid = Xtr[idx]
+
+    # find the subset of points closest to the centroid
+    distances = torch.cdist(Xtr, centroid.view(1, -1)).squeeze(-1)
+    _, indices = torch.topk(distances, k=subsample_size, largest=False, sorted=False)
+    return Xtr[indices], ytr[indices]
+
+
+def train_exact_gp_subsampled(
+    Xtr: torch.Tensor,
+    ytr: torch.Tensor,
+    kernel_type: str,
+    opt_hparams: dict,
+    training_iters: int,
+    subsample_size: int,
+    num_trials: int,
+) -> GPHparams:
+    gp_hparams = None
+
+    # train a GP on subsamples of the training data
+    for i in range(num_trials):
+        # get a random, centroid-based subsample of the training data
+        Xtr_subsampled, ytr_subsampled = _get_subsample_centroid(
+            Xtr, ytr, subsample_size
+        )
+
+        # train the GP on the subsample
+        if gp_hparams is None:
+            gp_hparams = _train_exact_gp(
+                Xtr_subsampled,
+                ytr_subsampled,
+                kernel_type,
+                opt_hparams,
+                training_iters,
+            )
+        else:
+            gp_hparams_i = _train_exact_gp(
+                Xtr_subsampled,
+                ytr_subsampled,
+                kernel_type,
+                opt_hparams,
+                training_iters,
+            )
+            gp_hparams += gp_hparams_i
+
+    # return the hyperparameters after averaging over the trials
+    return gp_hparams / num_trials

@@ -17,10 +17,10 @@ class GPInference:
         ytst: torch.Tensor,
         kernel_type: str,
         kernel_hparams: GPHparams,
-        distributed: bool = False,
-        devices: set[torch.device] | None = None,
         num_posterior_samples: int = 0,
         num_random_features: int = 0,
+        distributed: bool = False,
+        devices: set[torch.device] | None = None,
     ):
         # NOTE(pratik): this class assumes a zero-mean GP prior
         self.Xtr = Xtr
@@ -33,10 +33,10 @@ class GPInference:
             lengthscale=kernel_hparams.kernel_lengthscale,
         )
         self.noise_variance = kernel_hparams.noise_variance
-        self.distributed = distributed
-        self.devices = devices
         self.num_posterior_samples = num_posterior_samples
         self.num_random_features = num_random_features
+        self.distributed = distributed
+        self.devices = devices
         (
             self.Xtr_prior_samples,
             self.Xtst_prior_samples,
