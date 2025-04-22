@@ -1,5 +1,3 @@
-from typing import Optional, Set
-
 from rlaopt.kernels import (
     RBFLinOp,
     DistributedRBFLinOp,
@@ -32,7 +30,7 @@ def _get_kernel_linop(
     kernel_type: str,
     kernel_config: KernelConfig,
     distributed: bool,
-    devices: Optional[Set[torch.device]] = None,
+    devices: set[torch.device] | None = None,
 ):
     """Get the kernel linear operator class based on the kernel type."""
     if distributed:

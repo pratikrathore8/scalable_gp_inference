@@ -1,11 +1,9 @@
-from typing import Union
-
 from rlaopt.kernels import KernelConfig
 import torch
 from torch.distributions import Chi2
 
 
-def _get_safe_lengthscale(lengthscale: Union[float, torch.Tensor]) -> torch.Tensor:
+def _get_safe_lengthscale(lengthscale: float | torch.Tensor) -> torch.Tensor:
     if isinstance(lengthscale, torch.Tensor):
         return lengthscale.unsqueeze(-1)
     return lengthscale

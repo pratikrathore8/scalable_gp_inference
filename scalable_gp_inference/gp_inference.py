@@ -1,6 +1,3 @@
-from typing import Optional, Set, Union
-
-
 from rlaopt.solvers import SolverConfig
 from rlaopt.kernels import KernelConfig
 import torch
@@ -17,25 +14,25 @@ class GPInference:
         ytr: torch.Tensor,
         Xtst: torch.Tensor,
         ytst: torch.Tensor,
-        noise_variance: float,
-        signal_variance: float,
         kernel_type: str,
-        kernel_lengthscale: Union[float, torch.Tensor],
-        distributed: Optional[bool] = False,
-        devices: Optional[Set[torch.device]] = None,
-        num_posterior_samples: Optional[int] = 0,
-        num_random_features: Optional[int] = 0,
+        kernel_lengthscale: float | torch.Tensor,
+        signal_variance: float,
+        noise_variance: float,
+        distributed: bool = False,
+        devices: set[torch.device] | None = None,
+        num_posterior_samples: int = 0,
+        num_random_features: int = 0,
     ):
         # NOTE(pratik): this class assumes a zero-mean GP prior
         self.Xtr = Xtr
         self.ytr = ytr
         self.Xtst = Xtst
         self.ytst = ytst
-        self.noise_variance = noise_variance
         self.kernel_type = kernel_type
         self.kernel_config = KernelConfig(
             const_scaling=signal_variance, lengthscale=kernel_lengthscale
         )
+        self.noise_variance = noise_variance
         self.distributed = distributed
         self.devices = devices
         self.num_posterior_samples = num_posterior_samples
@@ -175,10 +172,10 @@ class GPInference:
     def perform_inference(
         self,
         solver_config: SolverConfig,
-        W_init: Optional[torch.Tensor] = None,
-        eval_freq: Optional[int] = 10,
-        log_in_wandb: Optional[bool] = False,
-        wandb_init_kwargs: Optional[dict] = {},
+        W_init: torch.Tensor | None = None,
+        eval_freq: int = 10,
+        log_in_wandb: bool = False,
+        wandb_init_kwargs: dict = {},
     ):
         linsys = self._get_linsys()
         tst_kernel_linop = self._get_tst_kernel_linop()
