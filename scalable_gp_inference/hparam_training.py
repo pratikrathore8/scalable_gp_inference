@@ -80,7 +80,7 @@ class GPHparams:
 
     def __truediv__(self, scalar: float | int) -> "GPHparams":
         """Divide GPHparams by a scalar value."""
-        if not isinstance(scalar, (int, float)):
+        if not isinstance(scalar, (float, int)):
             raise TypeError(f"Cannot divide GPHparams by type {type(scalar).__name__}")
 
         if scalar == 0:
