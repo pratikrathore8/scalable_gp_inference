@@ -132,6 +132,8 @@ def train_exact_gp(
 
     return GPHparams(
         signal_variance=model.covar_module.outputscale.item(),
-        kernel_lengthscale=model.covar_module.base_kernel.lengthscale.detach(),
+        kernel_lengthscale=model.covar_module.base_kernel.lengthscale.detach().squeeze(
+            0
+        ),  # get rid of the extra dimension
         noise_variance=likelihood.noise.item(),
     )
