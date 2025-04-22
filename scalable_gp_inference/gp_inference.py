@@ -2,6 +2,7 @@ from rlaopt.solvers import SolverConfig
 from rlaopt.kernels import KernelConfig
 import torch
 
+from .hparam_training import GPHparams
 from .kernel_linsys import KernelLinSys
 from .random_features import get_random_features
 from .utils import _get_kernel_linop, _safe_unsqueeze
@@ -15,13 +16,11 @@ class GPInference:
         Xtst: torch.Tensor,
         ytst: torch.Tensor,
         kernel_type: str,
-        kernel_lengthscale: float | torch.Tensor,
-        signal_variance: float,
-        noise_variance: float,
-        distributed: bool = False,
-        devices: set[torch.device] | None = None,
+        kernel_hparams: GPHparams,
         num_posterior_samples: int = 0,
         num_random_features: int = 0,
+        distributed: bool = False,
+        devices: set[torch.device] | None = None,
     ):
         # NOTE(pratik): this class assumes a zero-mean GP prior
         self.Xtr = Xtr
@@ -30,13 +29,14 @@ class GPInference:
         self.ytst = ytst
         self.kernel_type = kernel_type
         self.kernel_config = KernelConfig(
-            const_scaling=signal_variance, lengthscale=kernel_lengthscale
+            const_scaling=kernel_hparams.signal_variance,
+            lengthscale=kernel_hparams.kernel_lengthscale,
         )
-        self.noise_variance = noise_variance
-        self.distributed = distributed
-        self.devices = devices
+        self.noise_variance = kernel_hparams.noise_variance
         self.num_posterior_samples = num_posterior_samples
         self.num_random_features = num_random_features
+        self.distributed = distributed
+        self.devices = devices
         (
             self.Xtr_prior_samples,
             self.Xtst_prior_samples,
