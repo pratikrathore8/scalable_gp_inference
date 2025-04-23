@@ -15,10 +15,10 @@ class KernelLinSys(LinSys):
         reg: float,
         kernel_type: str,
         kernel_config: KernelConfig,
+        use_full_kernel: bool = True,
         residual_tracking_idx: torch.Tensor | None = None,
         distributed: bool = False,
         devices: set[torch.device] | None = None,
-        use_full_kernel: bool = True,
     ):
         """Initialize KernelLinSys model.
 
@@ -28,6 +28,8 @@ class KernelLinSys(LinSys):
             reg (float): Regularization parameter.
             kernel_type (str): Type of kernel.
             kernel_config (KernelConfig): Kernel configuration.
+            use_full_kernel (bool): Whether to use the full kernel. Defaults to True.
+            If False, then residuals will be set to infinity.
             residual_tracking_idx (torch.Tensor | None): Indices of columns of B to
             track for termination. If None, all columns are tracked.
             Defaults to None.
@@ -35,8 +37,6 @@ class KernelLinSys(LinSys):
             Defaults to False.
             devices (set[torch.device] | None): Set of devices to use for distributed
             computation. Defaults to None.
-            use_full_kernel (bool): Whether to use the full kernel. Defaults to True.
-            If False, then residuals will be set to infinity.
         """
         # Set up superclass
         kernel_linop = _get_kernel_linop(

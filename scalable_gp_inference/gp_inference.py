@@ -77,7 +77,7 @@ class GPInference:
             return Xtr_prior_samples, Xtst_prior_samples
         return (None,) * 2
 
-    def _get_linsys(self):
+    def _get_linsys(self, use_full_kernel: bool):
         if self.Xtr_prior_samples is not None:
             B = torch.cat(
                 (_safe_unsqueeze(self.ytr), _safe_unsqueeze(self.Xtr_prior_samples)),
@@ -92,6 +92,7 @@ class GPInference:
             reg=self.noise_variance,
             kernel_type=self.kernel_type,
             kernel_config=self.kernel_config,
+            use_full_kernel=use_full_kernel,
             distributed=self.distributed,
             devices=self.devices,
         )
@@ -126,18 +127,22 @@ class GPInference:
         return nll
 
     def _callback_fn(self, W: torch.Tensor, linsys: KernelLinSys, tst_kernel_linop):
-        train_rmse = torch.sqrt(
-            1 / self.ytr.shape[0] * torch.sum((self.ytr - linsys.A @ W[:, 0]) ** 2)
-        )
+        metrics_dict = {}
+
+        # Compute train and test RMSE
+        if linsys.use_full_kernel:
+            train_rmse = torch.sqrt(
+                1 / self.ytr.shape[0] * torch.sum((self.ytr - linsys.A @ W[:, 0]) ** 2)
+            )
+            metrics_dict.update({"train_rmse": train_rmse.cpu().item()})
+
         test_mean = tst_kernel_linop @ W[:, 0]
         test_rmse = torch.sqrt(
             1 / self.ytst.shape[0] * torch.sum((self.ytst - test_mean) ** 2)
         )
-        metrics_dict = {
-            "train_rmse": train_rmse.cpu().item(),
-            "test_rmse": test_rmse.cpu().item(),
-            "test_mean": test_mean.cpu().numpy(),
-        }
+        metrics_dict.update(
+            {"test_rmse": test_rmse.cpu().item(), "test_mean": test_mean.cpu().numpy()}
+        )
 
         # Compute variances and negative log likelihood using posterior samples
         if self.Xtr_prior_samples is not None and self.Xtst_prior_samples is not None:
@@ -173,11 +178,12 @@ class GPInference:
         self,
         solver_config: SolverConfig,
         W_init: torch.Tensor | None = None,
+        use_full_kernel: bool = True,
         eval_freq: int = 10,
         log_in_wandb: bool = False,
         wandb_init_kwargs: dict = {},
     ):
-        linsys = self._get_linsys()
+        linsys = self._get_linsys(use_full_kernel)
         tst_kernel_linop = self._get_tst_kernel_linop()
 
         if W_init is None:
