@@ -1,8 +1,12 @@
 from rlaopt.models import LinSys
 from rlaopt.kernels import KernelConfig
+from rlaopt.solvers import _get_solver_name, _is_solver_config
+from rlaopt.utils import Logger, _is_torch_tensor
+
 import torch
 
-from .utils import _get_kernel_linop
+from .sdd_config import SDDConfig
+from .utils import _get_kernel_linop, get_solver
 
 
 class KernelLinSys(LinSys):
@@ -73,3 +77,61 @@ class KernelLinSys(LinSys):
         )
         self._mask = abs_res > comp_tol
         return (~self._mask).all().item()
+
+    def solve(
+        self,
+        solver_config,
+        W_init,
+        callback_fn=None,
+        callback_args=[],
+        callback_kwargs={},
+        callback_freq=10,
+        log_in_wandb=False,
+        wandb_init_kwargs=None,
+    ):
+        if not isinstance(solver_config, SDDConfig):
+            _is_solver_config(solver_config, "solver_config")
+            solver_name = _get_solver_name(solver_config)
+        else:
+            solver_name = "sdd"
+        _is_torch_tensor(W_init, "W_init")
+        if log_in_wandb and wandb_init_kwargs is None:
+            raise ValueError(
+                "wandb_init_kwargs must be specified if log_in_wandb is True"
+            )
+
+        # Termination criteria
+        atol, rtol = solver_config.atol, solver_config.rtol
+
+        def termination_fn(internal_metrics):
+            return self._check_termination_criteria(internal_metrics, atol, rtol)
+
+        # Setup logging
+        log_fn = self._get_log_fn(callback_fn, callback_args, callback_kwargs)
+
+        wandb_kwargs = self._get_wandb_kwargs(
+            log_in_wandb=log_in_wandb,
+            wandb_init_kwargs=wandb_init_kwargs,
+            solver_name=solver_name,
+            solver_config=solver_config,
+            callback_freq=callback_freq,
+        )
+
+        logger = Logger(
+            log_freq=callback_freq,
+            log_fn=log_fn,
+            wandb_kwargs=wandb_kwargs,
+        )
+
+        # Get solver
+        solver = get_solver(lin_sys=self, W_init=W_init, solver_config=solver_config)
+
+        # Run solver
+        solution, log = self._train(
+            logger=logger,
+            termination_fn=termination_fn,
+            solver=solver,
+            max_iters=solver_config.max_iters,
+        )
+
+        return solution, log

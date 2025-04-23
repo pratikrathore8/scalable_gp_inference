@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 
 from rlaopt.preconditioners import IdentityConfig
-from rlaopt.utils import _is_pos_float, _is_pos_int
+from rlaopt.utils import _is_pos_float, _is_pos_int, _is_torch_device
+
+import torch
 
 
 @dataclass(kw_only=True)
@@ -11,6 +13,9 @@ class SDDConfig:
     theta: float
     blk_size: int
     max_iters: int
+    device: torch.device
+    atol: float = 1e-6
+    rtol: float = 1e-6
 
     def __post_init__(self):
         _is_pos_float(self.m, "m")
@@ -23,5 +28,6 @@ class SDDConfig:
 
         _is_pos_int(self.blk_size, "batch_size")
         _is_pos_int(self.max_iters, "max_iters")
+        _is_torch_device(self.device, "device")
 
         self.precond_config = IdentityConfig()

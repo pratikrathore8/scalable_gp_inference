@@ -29,11 +29,13 @@ _KERNEL_LINOP_CLASSES = {
 }
 
 
-def get_solver(lin_sys, W_init, config):
-    if isinstance(config, SDDConfig):
-        return SDD(config, W_init=W_init, system=lin_sys, device=config.device)
+def get_solver(lin_sys, W_init, solver_config):
+    if isinstance(solver_config, SDDConfig):
+        return SDD(
+            solver_config, W_init=W_init, system=lin_sys, device=solver_config.device
+        )
     else:
-        return _get_solver(lin_sys, W_init, config)
+        return _get_solver(lin_sys, W_init, solver_config)
 
 
 def _get_kernel_linop(

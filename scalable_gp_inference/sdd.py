@@ -70,7 +70,7 @@ class SDD(Solver):
             self.system.A_row_oracle(blk) @ W + self.system.reg * W[blk, :] - B[blk, :]
         )
 
-        return self.system.A.shape[0] / self.config.batch_size * blk_grad
+        return self.system.A.shape[0] / self.config.blk_size * blk_grad
 
     def _step(self):
 
