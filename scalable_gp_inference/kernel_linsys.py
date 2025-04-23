@@ -29,7 +29,7 @@ class KernelLinSys(LinSys):
             kernel_type (str): Type of kernel.
             kernel_config (KernelConfig): Kernel configuration.
             use_full_kernel (bool): Whether to use the full kernel. Defaults to True.
-            If False, then residuals will be set to infinity.
+            If False, then residuals will be set to None.
             residual_tracking_idx (torch.Tensor | None): Indices of columns of B to
             track for termination. If None, all columns are tracked.
             Defaults to None.
@@ -69,28 +69,26 @@ class KernelLinSys(LinSys):
             rel_res = abs_res / torch.linalg.norm(self.B_eval, dim=0, ord=2)
             return {"abs_res": abs_res, "rel_res": rel_res}
 
-        # If not using full kernel, set residuals to infinity
+        # If not using full kernel, set residuals to None
+        # to indicate that we are not tracking them
         return {
-            "abs_res": torch.full(
-                self.B_eval.shape[1],
-                float("inf"),
-                dtype=self.B_eval.dtype,
-                device=self.B_eval.device,
-            ),
-            "rel_res": torch.full(
-                self.B_eval.shape[1],
-                float("inf"),
-                dtype=self.B_eval.dtype,
-                device=self.B_eval.device,
-            ),
+            "abs_res": None,
+            "rel_res": None,
         }
 
     def _check_termination_criteria(
         self, internal_metrics: dict, atol: float, rtol: float
     ):
         abs_res = internal_metrics["abs_res"]
-        comp_tol = torch.clamp(
-            rtol * torch.linalg.norm(self.B_eval, dim=0, ord=2), min=atol
-        )
-        self._mask = abs_res > comp_tol
+        if abs_res is not None:
+            comp_tol = torch.clamp(
+                rtol * torch.linalg.norm(self.B_eval, dim=0, ord=2), min=atol
+            )
+            self._mask = abs_res > comp_tol
+        # If we are not tracking residuals, set mask to all True
+        else:
+            self._mask = torch.ones(
+                self.B_eval.shape[1], device=self.B_eval.device, dtype=torch.bool
+            )
+
         return (~self._mask).all().item()
