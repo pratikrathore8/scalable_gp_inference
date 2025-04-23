@@ -28,7 +28,7 @@ class GPHparams:
     noise_variance: float
 
     def __post_init__(self):
-        # check types
+        # Check types
         if not isinstance(self.signal_variance, float):
             raise TypeError(
                 f"signal_variance is of type {type(self.signal_variance).__name__}, "
@@ -46,7 +46,7 @@ class GPHparams:
                 "but expected type float"
             )
 
-        # check positivity
+        # Check positivity
         if self.signal_variance < 0:
             raise ValueError("signal_variance must be non-negative")
         if isinstance(self.kernel_lengthscale, float) and self.kernel_lengthscale <= 0:
@@ -101,10 +101,10 @@ def _train_exact_gp(
     opt_hparams: dict,
     training_iters: int,
 ) -> GPHparams:
-    # initialize likelihood and model
+    # Initialize likelihood and model
     likelihood = GaussianLikelihood()
 
-    # get base kernel
+    # Get base kernel
     if kernel_type == "rbf":
         base_kernel = RBFKernel(ard_num_dims=Xtr.shape[1])
     elif kernel_type == "matern12":
@@ -120,15 +120,15 @@ def _train_exact_gp(
     model = model.to(Xtr.device)
     likelihood = likelihood.to(Xtr.device)
 
-    # find optimal hyperparameters
+    # Find optimal hyperparameters
     model.train()
     likelihood.train()
 
-    # use Adam optimizer
-    # includes GaussianLikelihood parameters
+    # Use Adam optimizer
+    # Includes GaussianLikelihood parameters
     optimizer = torch.optim.Adam(model.parameters(), **opt_hparams)
 
-    # "loss" for GPs is the marginal log likelihood
+    # "Loss" for GPs is the marginal log likelihood
     mll = ExactMarginalLogLikelihood(likelihood, model)
 
     for i in range(training_iters):
@@ -142,7 +142,7 @@ def _train_exact_gp(
         signal_variance=model.covar_module.outputscale.item(),
         kernel_lengthscale=model.covar_module.base_kernel.lengthscale.detach().squeeze(
             0
-        ),  # get rid of the extra dimension
+        ),  # Get rid of the extra dimension
         noise_variance=likelihood.noise.item(),
     )
 
@@ -150,11 +150,11 @@ def _train_exact_gp(
 def _get_subsample_centroid(
     Xtr: torch.Tensor, ytr: torch.Tensor, subsample_size: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    # randomly sample a point from the training set
+    # Randomly sample a point from the training set
     idx = torch.randint(0, Xtr.shape[0], (1,))
     centroid = Xtr[idx]
 
-    # find the subset of points closest to the centroid
+    # Find the subset of points closest to the centroid
     distances = torch.cdist(Xtr, centroid.view(1, -1)).squeeze(-1)
     _, indices = torch.topk(distances, k=subsample_size, largest=False, sorted=False)
     return Xtr[indices], ytr[indices]
@@ -171,14 +171,14 @@ def train_exact_gp_subsampled(
 ) -> GPHparams:
     gp_hparams = None
 
-    # train a GP on subsamples of the training data
+    # Train a GP on subsamples of the training data
     for i in range(num_trials):
-        # get a random, centroid-based subsample of the training data
+        # Get a random, centroid-based subsample of the training data
         Xtr_subsampled, ytr_subsampled = _get_subsample_centroid(
             Xtr, ytr, subsample_size
         )
 
-        # train the GP on the subsample
+        # Train the GP on the subsample
         if gp_hparams is None:
             gp_hparams = _train_exact_gp(
                 Xtr_subsampled,
@@ -197,5 +197,5 @@ def train_exact_gp_subsampled(
             )
             gp_hparams += gp_hparams_i
 
-    # return the hyperparameters after averaging over the trials
+    # Return the hyperparameters after averaging over the trials
     return gp_hparams / num_trials
