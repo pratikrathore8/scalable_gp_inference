@@ -65,9 +65,7 @@ def preprocess_dataset(
             raise ValueError(f"Column '{col}' missing in {dataset_name} data")
 
     if dataset_name == "houseelec":
-        df = make_datetime_numeric(df)
-        print(df)
-
+        df = make_datetime_numeric(df, precision)
 
     # Split data
     x_features = df.drop(columns=exclude_columns)
