@@ -96,19 +96,18 @@ def set_column_roles(dataset_name: str):
             raise ValueError(f"No target columns found for {dataset_name}")
 
 
-def make_datetime_numeric(df, date_col="Date", time_col="Time",
+def make_datetime_numeric(df, precision, date_col="Date", time_col="Time",
                            drop_original=True):
-    # 1) combine to pandas datetime
+
     dt = pd.to_datetime(df[date_col] + " " + df[time_col],
                         format="%d/%m/%Y %H:%M:%S",
                         errors="coerce")
-    # 2) safety: drop rows with bad dates
     df = df.loc[dt.notna()].copy()
     dt = dt.loc[dt.notna()]
 
-    # 3) convert to seconds since epoch and store as float32
+    # convert to seconds since epoch and store as float32
     df["timestamp"] = dt.astype("int64") // 10**9   # seconds
-    df["timestamp"] = df["timestamp"].astype(np.float32)
+    df["timestamp"] = df["timestamp"].astype(precision)
 
     if drop_original:
         df = df.drop(columns=[date_col, time_col])
