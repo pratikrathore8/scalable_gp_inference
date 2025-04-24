@@ -15,6 +15,7 @@ class KernelLinSys(LinSys):
         reg: float,
         kernel_type: str,
         kernel_config: KernelConfig,
+        use_full_kernel: bool = True,
         residual_tracking_idx: torch.Tensor | None = None,
         distributed: bool = False,
         devices: set[torch.device] | None = None,
@@ -27,6 +28,8 @@ class KernelLinSys(LinSys):
             reg (float): Regularization parameter.
             kernel_type (str): Type of kernel.
             kernel_config (KernelConfig): Kernel configuration.
+            use_full_kernel (bool): Whether to use the full kernel. Defaults to True.
+            If False, then residuals will be set to None.
             residual_tracking_idx (torch.Tensor | None): Indices of columns of B to
             track for termination. If None, all columns are tracked.
             Defaults to None.
@@ -51,25 +54,41 @@ class KernelLinSys(LinSys):
         self.B_eval = (
             B if residual_tracking_idx is None else B[:, self.residual_tracking_idx]
         )
+        self.use_full_kernel = use_full_kernel
 
     def _compute_internal_metrics(self, W: torch.Tensor):
-        W_in = (
-            W[:, self.residual_tracking_idx]
-            if self.residual_tracking_idx is not None
-            else W
-        )
-        abs_res = torch.linalg.norm(
-            self.B_eval - (self.A @ W_in + self.reg * W_in), dim=0, ord=2
-        )
-        rel_res = abs_res / torch.linalg.norm(self.B_eval, dim=0, ord=2)
-        return {"abs_res": abs_res, "rel_res": rel_res}
+        if self.use_full_kernel:
+            W_in = (
+                W[:, self.residual_tracking_idx]
+                if self.residual_tracking_idx is not None
+                else W
+            )
+            abs_res = torch.linalg.norm(
+                self.B_eval - (self.A @ W_in + self.reg * W_in), dim=0, ord=2
+            )
+            rel_res = abs_res / torch.linalg.norm(self.B_eval, dim=0, ord=2)
+            return {"abs_res": abs_res, "rel_res": rel_res}
+
+        # If not using full kernel, set residuals to None
+        # to indicate that we are not tracking them
+        return {
+            "abs_res": None,
+            "rel_res": None,
+        }
 
     def _check_termination_criteria(
         self, internal_metrics: dict, atol: float, rtol: float
     ):
         abs_res = internal_metrics["abs_res"]
-        comp_tol = torch.clamp(
-            rtol * torch.linalg.norm(self.B_eval, dim=0, ord=2), min=atol
-        )
-        self._mask = abs_res > comp_tol
+        if abs_res is not None:
+            comp_tol = torch.clamp(
+                rtol * torch.linalg.norm(self.B_eval, dim=0, ord=2), min=atol
+            )
+            self._mask = abs_res > comp_tol
+        # If we are not tracking residuals, set mask to all True
+        else:
+            self._mask = torch.ones(
+                self.B_eval.shape[1], device=self.B_eval.device, dtype=torch.bool
+            )
+
         return (~self._mask).all().item()
