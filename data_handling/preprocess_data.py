@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from pathlib import Path
 from dataset_configs import DATA_DIR, DATASET_CONFIGS
-from download_data import set_column_roles, make_datetime_numeric
+from data_utils import set_column_roles, make_datetime_numeric
 
 
 def preprocess_dataset(
@@ -123,7 +123,7 @@ def preprocess_dataset(
 
 
 if __name__ == "__main__":
-    data = preprocess_dataset(
+    preprocess_dataset(
         "buzz",
         0.1,
         np.float32,
