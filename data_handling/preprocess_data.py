@@ -11,7 +11,7 @@ from download_data import set_column_roles, make_datetime_numeric
 def preprocess_dataset(
     dataset_name: str,
     test_split_ratio: float,
-    target_rank: int,
+    precision: np.dtype,
     normalize: bool,
     normalization_method: str,
     device: str,
@@ -26,10 +26,7 @@ def preprocess_dataset(
 
         test_split_ratio: Proportion for the test to train split (0-1)
 
-        label_rank: Controls y's dimensionality for both the train and test datas.
-          We either reshape y to be a column vector (shape (N, 1)) or squeeze the labels
-          to become rank 1 arrays (shape (N,)). Some frameworks (e.g., PyTorch) might prefer targets
-           as 2D tensors for batch processing, so here it could be set to 2.
+        precision: Could be one of the following {np.float16, np.float32, np.float64}
 
         normalize: Whether to apply normalization or not
 
@@ -81,18 +78,10 @@ def preprocess_dataset(
     )
 
     # Separate and reshape features and labels
-    x_train = x_train.values.astype(np.float32)
-    y_train = y_train.values.astype(np.float32)
-    x_test = x_test.values.astype(np.float32)
-    y_test = y_test.values.astype(np.float32)
-
-    if target_rank == 1:
-        y_train = y_train.squeeze()
-        y_test  = y_test.squeeze()
-
-    elif target_rank == 2:
-        y_train = y_train.reshape(-1, 1)
-        y_test  = y_test.reshape(-1, 1)
+    x_train = x_train.values.astype(precision)
+    y_train = y_train.values.astype(precision).squeeze()
+    x_test = x_test.values.astype(precision)
+    y_test = y_test.values.astype(precision).squeeze()
 
     # Initialize normalization parameters
     normalization_params = None
@@ -139,7 +128,7 @@ if __name__ == "__main__":
     data = preprocess_dataset(
         "buzz",
         0.1,
-        2,
+        np.float32,
         True,
         'z_score',
         device="cuda" if torch.cuda.is_available() else "cpu")
