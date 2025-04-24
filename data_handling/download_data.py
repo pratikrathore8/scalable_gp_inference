@@ -2,7 +2,6 @@ from dataset_configs import DATA_DIR, DATASET_CONFIGS
 from data_utils import create_dataframe
 
 
-
 def download_dataset(dataset_name: str, *, force: bool = False):
     """
     Download and save one dataset as a DataFrame in a csv file.
@@ -34,7 +33,6 @@ def download_all_datasets(dataset_names=None, *, force: bool = False):
     for dataset_name in dataset_names:
         print(f"→ Downloading {dataset_name}")
         download_dataset(dataset_name, force=force)
-
 
 
 if __name__ == "__main__":
