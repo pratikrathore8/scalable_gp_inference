@@ -2,7 +2,6 @@ from pathlib import Path
 
 DATA_DIR = Path("data")
 
-
 DATASET_CONFIGS = {
     "3droad": {
         "source": "uci",
@@ -24,14 +23,14 @@ DATASET_CONFIGS = {
         "target_columns": [0],
         "ignore_columns": []
     },
-    "buzz": { # Needs Clarification: See https://lig-aptikal.imag.fr/buzz-prediction-in-online-social-media/
+    "buzz": { # This is aligned with Lin et al., where the regression task of the "buzz" dataset (only for Twitter) is used
         "source": "uci",
         "id": "248",
         "download_url": "https://archive.ics.uci.edu/static/public/248/buzz+in+social+media.zip",
         "data_url": None,
-        "num_instances": 140000,
-        "num_features": 0,     
-        "target_columns": None,
+        "num_instances": 583250,
+        "num_features": 77,
+        "target_columns": [-1],
         "ignore_columns": []
     },
     "houseelec": {
@@ -42,7 +41,7 @@ DATASET_CONFIGS = {
         "num_instances": 2049280,
         "num_features": 8,
         "target_columns": ["Global_active_power"],   # In Lin et al.
-        "ignore_columns": ["Date", "Time"]
+        "ignore_columns": []
     },
 
     "acsincome": {
