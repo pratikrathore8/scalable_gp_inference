@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import zipfile
+import tarfile
 from io import BytesIO
 import ssl
 import certifi
@@ -18,6 +19,7 @@ from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 from dataset_configs import DATA_DIR, DATASET_CONFIGS
 
+
 def get_metadata(dataset_name: str):
     """Fetch dataset metadata from UCI API."""
     dataset_id = DATASET_CONFIGS[dataset_name]["id"]
@@ -31,7 +33,6 @@ def get_metadata(dataset_name: str):
     except Exception as e:
         print(f"Error fetching metadata for {dataset_name}: {e}")
         return None
-
 
 def load_data_from_zip(dataset_dir):
     """Load data from downloaded zip file."""
@@ -48,16 +49,20 @@ def load_data_from_zip(dataset_dir):
     raise ValueError("No readable data files found in zip archive")
 
 
-def set_target_column(dataset_name: str):
-    """Set target column from metadata."""
-    metadata = get_metadata(dataset_name)
-    if metadata:
-        target_col = metadata["data"].get("target_col", None)
-    else:
-        raise ValueError("No metadata found!")
-
-    DATASET_CONFIGS[dataset_name]["target_columns"] = target_col
-
+def print_compressed_members(zip_bytes: bytes, extract_root: Path):
+    """Echo every path inside buzz ZIP and the nested tar.gz."""
+    with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
+        for name in zf.namelist():
+            print("ZIP member →", name)             # first-layer listing
+            if name.endswith(".tar.gz"):
+                tar_bytes = zf.read(name)
+                with tarfile.open(fileobj=BytesIO(tar_bytes), mode="r:gz") as tf:
+                    for m in tf.getmembers():
+                        print("TAR member →", m.name)  # second-layer listing
+                    # unpack the tarball so files exist on disk
+                    tf.extractall(extract_root)
+                    print("Extracted TAR →", extract_root)
+                    
 
 def set_column_roles(dataset_name: str):
     """Set target and ignore columns from metadata based on variable roles."""
@@ -91,6 +96,26 @@ def set_column_roles(dataset_name: str):
             raise ValueError(f"No target columns found for {dataset_name}")
 
 
+def make_datetime_numeric(df, date_col="Date", time_col="Time",
+                           drop_original=True):
+    # 1) combine to pandas datetime
+    dt = pd.to_datetime(df[date_col] + " " + df[time_col],
+                        format="%d/%m/%Y %H:%M:%S",
+                        errors="coerce")
+    # 2) safety: drop rows with bad dates
+    df = df.loc[dt.notna()].copy()
+    dt = dt.loc[dt.notna()]
+
+    # 3) convert to seconds since epoch and store as float32
+    df["timestamp"] = dt.astype("int64") // 10**9   # seconds
+    df["timestamp"] = df["timestamp"].astype(np.float32)
+
+    if drop_original:
+        df = df.drop(columns=[date_col, time_col])
+
+    return df
+
+
 def columns_are_numeric(cols):
     """check if all column names can be converted to numeric values.
      If true, it indicates the data lacks headers."""
@@ -100,6 +125,36 @@ def columns_are_numeric(cols):
         except ValueError:
             return False
     return True
+
+
+def load_buzz_regression(zip_bytes: bytes, dataset_dir) -> pd.DataFrame:
+    """Return a tidy DF for Buzz regression, unpacking regression.tar.gz."""
+    with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
+        tar_bytes = zf.read("regression.tar.gz")
+    # unpack tar into dataset_dir/regression/
+    with tarfile.open(fileobj=BytesIO(tar_bytes), mode="r:gz") as tf:
+        tf.extractall(dataset_dir)                  # creates regression/Twitter/…
+        # iterate .data files
+        dfs = []
+        for member in tf.getmembers():
+            if member.name.endswith(".data"):
+                part_path = dataset_dir / member.name
+                src = "twitter" if "Twitter" in member.name else "tomshw"
+                df_part = pd.read_csv(part_path, header=None, dtype=np.float32)
+                df_part["source"] = src
+                dfs.append(df_part)
+    if not dfs:
+        raise ValueError("No .data files inside regression.tar.gz")
+    raw_data = pd.concat(dfs, ignore_index=True)
+    raw_data = raw_data.dropna(axis=1, how='any')
+    twitter_rows = raw_data[raw_data["source"] == "twitter"]
+    data = twitter_rows.drop(columns=["source"])
+    print(data)
+    x, y = data.iloc[:, :-1], data.iloc[:, -1]
+    df = x.copy()
+    df["target"] = y
+    return df
+
 
 
 def create_dataframe(dataset_name: str):
@@ -142,6 +197,15 @@ def create_dataframe(dataset_name: str):
         print(
             f"Processed {dataset_name} | Number of instances: {num_instances} | Number of features: {num_features}")
 
+        return df
+
+    elif dataset_name == "buzz":
+        response = requests.get(config["download_url"])
+        print_compressed_members(response.content, dataset_dir)
+        df = load_buzz_regression(response.content, dataset_dir)
+        df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
+        print(
+            f"Processed {dataset_name} | Number of instances: {num_instances} | Number of features: {num_features}")
         return df
 
     else:
@@ -187,4 +251,4 @@ def create_dataframe(dataset_name: str):
 
 
 if __name__ == "__main__":
-    create_dataframe("malonaldehyde")
+   df = create_dataframe("buzz")
