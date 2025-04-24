@@ -76,7 +76,7 @@ pytz==2025.2
 PyYAML==6.0.2
 pyzmq==26.4.0
 requests==2.32.3
--e git+https://github.com/udellgroup/rlaopt.git@03fa326d9e48775430d18e3e18d11c003c0956d7#egg=rlaopt
+-e git+https://github.com/udellgroup/rlaopt.git@f543c5c3e23c8054dbcb3246551b7a3c7948de45#egg=rlaopt
 scikit-learn==1.6.1
 scipy==1.15.2
 sentry-sdk==2.25.1
