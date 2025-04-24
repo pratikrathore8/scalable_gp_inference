@@ -4,7 +4,9 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from pathlib import Path
-from uci_datasets_configs import DATA_DIR
+from dataset_configs import DATA_DIR, DATASET_CONFIGS
+from download_data import set_column_roles, make_datetime_numeric
+
 
 def preprocess_dataset(
     dataset_name: str,
@@ -47,7 +49,7 @@ def preprocess_dataset(
 
     try:
         # Load the full dataframe
-        full_df = pd.read_csv(dataset_dir / f'{dataset_name}_df.csv')
+        df = pd.read_csv(dataset_dir / f'{dataset_name}_df.csv')
 
     except FileNotFoundError:
         raise ValueError(f"Dataset {dataset_name} not found in {DATA_DIR}")
@@ -62,13 +64,17 @@ def preprocess_dataset(
     exclude_columns = [str(col) for col in exclude_columns] # Convert all of the header labels to strings to be sure
 
     for col in exclude_columns:
-        if col not in full_df.columns:
+        if col not in df.columns:
             raise ValueError(f"Column '{col}' missing in {dataset_name} data")
+
+    if dataset_name == "houseelec":
+        df = make_datetime_numeric(df)
+        print(df)
 
 
     # Split data
-    x_features = full_df.drop(columns=exclude_columns)
-    y = full_df[target_columns]
+    x_features = df.drop(columns=exclude_columns)
+    y = df[target_columns]
 
     x_train, x_test, y_train, y_test = train_test_split(
         x_features, y, test_size=test_split_ratio, random_state=42
@@ -80,12 +86,13 @@ def preprocess_dataset(
     x_test = x_test.values.astype(np.float32)
     y_test = y_test.values.astype(np.float32)
 
-    if target_rank == 2:
-        y_train = y_train.reshape(-1, 1)
-        y_test  = y_test.reshape(-1, 1)
-    else:
+    if target_rank == 1:
         y_train = y_train.squeeze()
         y_test  = y_test.squeeze()
+
+    elif target_rank == 2:
+        y_train = y_train.reshape(-1, 1)
+        y_test  = y_test.reshape(-1, 1)
 
     # Initialize normalization parameters
     normalization_params = None
@@ -127,11 +134,11 @@ def preprocess_dataset(
 
     return data_dict
 
-# Example usage
+
 if __name__ == "__main__":
     data = preprocess_dataset(
-        "3droad",
-        0.2,
+        "buzz",
+        0.1,
         2,
         True,
         'z_score',
