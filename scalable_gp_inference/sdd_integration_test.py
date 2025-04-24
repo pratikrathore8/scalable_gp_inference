@@ -8,6 +8,7 @@ from rlaopt.solvers import PCGConfig, SAPConfig, SAPAccelConfig
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.set_default_dtype(torch.float64)
 
 n = 100000
 d = 3
@@ -53,24 +54,18 @@ final_log_entry_asko = log_asko[list(log_asko.keys())[-1]]
 print("Final log entry key:", list(log_asko.keys())[-1])
 print("Final log entry:", final_log_entry_asko)
 
-# print("Running PCG")
-# solver_config = PCGConfig(
-#     precond_config=nystrom_config,
-#     max_iters=1000,
-#     atol=1e-6,
-#     rtol=1e-6,
-#     device=device
-# )
+print("Running PCG")
+solver_config = PCGConfig(
+    precond_config=nystrom_config, max_iters=1000, atol=1e-6, rtol=1e-6, device=device
+)
 
-# solution, log = kernel_linsys.solve(
-#     solver_config=solver_config,
-#     W_init=torch.zeros_like(B),
-#     log_in_wandb=False
-# )
+_, log_pcg = kernel_linsys.solve(
+    solver_config=solver_config, W_init=torch.zeros_like(B), log_in_wandb=False
+)
 
-# final_log_entry = log[list(log.keys())[-1]]
-# print("Final log entry key:", list(log.keys())[-1])
-# print("Final log entry:", final_log_entry)
+final_log_entry_pcg = log_pcg[list(log_pcg.keys())[-1]]
+print("Final log entry key:", list(log_pcg.keys())[-1])
+print("Final log entry:", final_log_entry_pcg)
 
 print("Running SDD")
 
