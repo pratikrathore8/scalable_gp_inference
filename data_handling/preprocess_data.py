@@ -14,7 +14,7 @@ def preprocess_dataset(
     normalize: bool,
     normalization_method: str,
     device: str,
-    random_state: int = 42,
+    random_state: int,
 ) -> dict:
 
     """
@@ -73,7 +73,7 @@ def preprocess_dataset(
     y = df[target_columns]
 
     x_train, x_test, y_train, y_test = train_test_split(
-        x_features, y, test_size=test_split_ratio, random_state=42
+        x_features, y, test_size=test_split_ratio, random_state=random_state
     )
 
     # Separate and reshape features and labels
