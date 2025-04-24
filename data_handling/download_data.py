@@ -149,7 +149,6 @@ def load_buzz_regression(zip_bytes: bytes, dataset_dir) -> pd.DataFrame:
     raw_data = raw_data.dropna(axis=1, how='any')
     twitter_rows = raw_data[raw_data["source"] == "twitter"]
     data = twitter_rows.drop(columns=["source"])
-    print(data)
     x, y = data.iloc[:, :-1], data.iloc[:, -1]
     df = x.copy()
     df["target"] = y
