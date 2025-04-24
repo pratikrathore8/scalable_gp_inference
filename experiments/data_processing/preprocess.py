@@ -3,8 +3,9 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from .configs import DATA_DIR, DATASET_CONFIGS
-from .utils import set_column_roles, make_datetime_numeric
+
+from configs import DATA_DIR, DATASET_CONFIGS
+from utils import set_column_roles, make_datetime_numeric
 
 
 def preprocess_dataset(
