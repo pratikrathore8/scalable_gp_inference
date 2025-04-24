@@ -71,6 +71,7 @@ class KernelLinSys(LinSys):
                 self.B_eval - (self.A @ W_in + self.reg * W_in), dim=0, ord=2
             )
             rel_res = abs_res / torch.linalg.norm(self.B_eval, dim=0, ord=2)
+
             return {"abs_res": abs_res, "rel_res": rel_res}
 
         # If not using full kernel, set residuals to None

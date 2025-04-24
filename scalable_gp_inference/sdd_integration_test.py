@@ -29,7 +29,15 @@ X = torch.randn(n, d, device=device)
 B = torch.randn(n, k, device=device)
 
 kernel_linsys = KernelLinSys(
-    X, B, reg, kernel_type, kernel_config, residual_tracking_idx, distributed, devices
+    X,
+    B,
+    reg,
+    kernel_type,
+    kernel_config,
+    residual_tracking_idx,
+    distributed,
+    devices,
+    use_full_kernel=True,
 )
 
 nystrom_config = NystromConfig(rank=100, rho=reg, damping_mode="adaptive")
@@ -46,7 +54,7 @@ solver_config = SAPConfig(
 )
 
 print("Running ASkotch")
-_, log_asko = kernel_linsys.solve(
+W, log_asko = kernel_linsys.solve(
     solver_config=solver_config, W_init=torch.zeros_like(B), log_in_wandb=False
 )
 
@@ -78,10 +86,12 @@ solver_config = SDDConfig(
     device=device,
 )
 
-_, log_sdd = kernel_linsys.solve(
+W, log_sdd = kernel_linsys.solve(
     solver_config=solver_config, W_init=torch.zeros_like(B), log_in_wandb=False
 )
 
 final_log_entry_sdd = log_sdd[list(log_sdd.keys())[-1]]
 print("Final log entry key:", list(log_sdd.keys())[-1])
 print("Final log entry:", final_log_entry_sdd)
+
+print(W)

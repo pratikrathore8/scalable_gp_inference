@@ -85,7 +85,7 @@ class SDD(Solver):
         blk = self._get_blk()
 
         # Blk gradient is evaluated at iterates + momentum
-        eval_loc = self._W[:, mask] + self.config.m * self._V[:, mask]
+        eval_loc = self._W[:, mask] + self.config.momentum * self._V[:, mask]
         g = self._get_blk_grad(eval_loc, self.system.B[:, mask], blk)
 
         # Create update direction
@@ -93,7 +93,7 @@ class SDD(Solver):
         update[blk] = self.config.step_size * g
 
         # Velocity update
-        self._V[:, mask] = self.config.m * self._V[:, mask] - update
+        self._V[:, mask] = self.config.momentum * self._V[:, mask] - update
         # Iterate update
         self._W[:, mask] += self._V[:, mask]
         # Average update
