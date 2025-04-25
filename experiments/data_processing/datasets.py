@@ -8,7 +8,11 @@ import numpy as np
 import pandas as pd
 from sklearn.datasets import fetch_openml
 
-from experiments.data_processing.utils import _convert_to_numpy, _process_molecule
+from experiments.data_processing.utils import (
+    _convert_to_numpy,
+    _process_molecule,
+    _convert_datetime_columns,
+)
 
 SGDML_URL_STEM = "http://www.quantum-machine.org/gdml/data/npz"
 
@@ -131,9 +135,10 @@ class UCIDataset(_BaseDataset):
         self,
         load_path: str,
         target_column: int = -1,
+        datetime_columns: list | None = None,
+        drop_columns: list | None = None,
         skip_header: bool = False,
         delimiter: str | None = None,
-        drop_columns: list | None = None,
     ):
         """
         Load the dataset from a text file.
@@ -141,10 +146,11 @@ class UCIDataset(_BaseDataset):
         Args:
             load_path: Path to the directory containing the data.txt file
             target_column: Index of the target column (negative indexing allowed)
+            datetime_columns: List of column indices to convert from datetime to numeric
+            drop_columns: List of column indices to drop from the feature matrix.
             skip_header: Whether to skip the first row (usually for column headers)
             delimiter: Delimiter for the text file.
                 If None, attempts to detect automatically
-            drop_columns: List of column indices to drop from the feature matrix.
 
         Returns:
             Dictionary with 'X' and 'y' keys containing features and target
@@ -175,6 +181,15 @@ class UCIDataset(_BaseDataset):
         # Skip the first row if needed
         if skip_header:
             data = data.iloc[1:].reset_index(drop=True)
+
+        # Remove rows with missing values
+        data.dropna(inplace=True)
+        # Reset index after dropping rows
+        data.reset_index(drop=True, inplace=True)
+
+        # Convert datetime columns to numeric if specified
+        if datetime_columns is not None:
+            data = _convert_datetime_columns(data, datetime_columns)
 
         # Convert negative target_column to positive index
         if target_column < 0:
