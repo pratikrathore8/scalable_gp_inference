@@ -1,4 +1,4 @@
-from experiments.data_processing.datasets import OpenMLDataset, SGDMLDataset, UCIDataset
+from datasets import OpenMLDataset, SGDMLDataset, UCIDataset
 
 _SAVE_PATH = "data"
 
