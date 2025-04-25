@@ -57,7 +57,7 @@ def _numpy_to_torch(
     """
     for key, value in data.items():
         if isinstance(value, np.ndarray):
-            data[key] = torch.from_numpy(value, dtype=dtype, device=device)
+            data[key] = torch.tensor(value, dtype=dtype, device=device)
         else:
             raise ValueError("Unsupported data type. Must be numpy array.")
     return data

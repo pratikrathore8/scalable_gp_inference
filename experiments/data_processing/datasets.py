@@ -106,6 +106,27 @@ class _BaseDataset(ABC):
         """
         return _numpy_to_torch(data, dtype, device)
 
+    def load_torch(
+        self,
+        load_path: str,
+        standardize: bool,
+        dtype: torch.dtype,
+        device: torch.device,
+        *args,  # useful for load()
+        **kwargs,  # useful for load()
+    ) -> dict[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        # Load data
+        data = self.load(load_path, *args, **kwargs)
+
+        # Split and (potentially) standardize the data
+        data_split = self.split_data(data)
+        if standardize:
+            data_split = self.standardize_data(data_split)
+
+        # Convert to PyTorch tensors on the specified device
+        data_split = self.convert_to_torch(data_split, dtype, device)
+        return data_split
+
 
 @dataclass(kw_only=True, frozen=False)
 class OpenMLDataset(_BaseDataset):
