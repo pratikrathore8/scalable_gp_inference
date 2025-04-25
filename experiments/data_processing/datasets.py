@@ -37,20 +37,17 @@ class _BaseDataset(ABC):
         self._raw_download(joined_save_path, *args, **kwargs)
 
     @abstractmethod
-    def _raw_load(self, load_path: str, *args, **kwargs):
+    def _raw_load(self, load_path: str, *args, **kwargs) -> dict:
         """Load the dataset from the specified location."""
         pass
 
-    def load(self, load_path: str, *args, **kwargs):
+    def load(self, load_path: str, *args, **kwargs) -> dict[np.ndarray, np.ndarray]:
         """Load the dataset from the specified location."""
         joined_load_path = os.path.join(load_path, self.data_folder_name)
         data = self._raw_load(joined_load_path, *args, **kwargs)
         for key, value in data.items():
             data[key] = _convert_to_numpy(value)
         return data
-
-    # The load function should read data from memory and also
-    #  drop the appropriate features
 
     # TODO(pratik): add more functions for actually loading the data into memory
     # This should take care of things like splitting/shuffling data, dropping features,
@@ -135,7 +132,8 @@ class UCIDataset(_BaseDataset):
         load_path: str,
         target_column: int = -1,
         skip_header: bool = False,
-        delimiter: str = None,
+        delimiter: str | None = None,
+        drop_columns: list | None = None,
     ):
         """
         Load the dataset from a text file.
@@ -145,14 +143,15 @@ class UCIDataset(_BaseDataset):
             target_column: Index of the target column (negative indexing allowed)
             skip_header: Whether to skip the first row (usually for column headers)
             delimiter: Delimiter for the text file.
-            If None, attempts to detect automatically
+                If None, attempts to detect automatically
+            drop_columns: List of column indices to drop from the feature matrix.
 
         Returns:
             Dictionary with 'X' and 'y' keys containing features and target
         """
         file_path = os.path.join(load_path, "data.txt")
 
-        # Try to automatically determine the delimiter if not provided
+        # # Try to automatically determine the delimiter if not provided
         if delimiter is None:
             with open(file_path, "r") as f:
                 first_line = f.readline().strip()
@@ -169,15 +168,37 @@ class UCIDataset(_BaseDataset):
         data = pd.read_csv(
             file_path,
             delimiter=delimiter,
-            header=0 if skip_header else None,
+            header=None,
             engine="python",  # More flexible handling of delimiters
         )
 
-        # Extract X and y
+        # Skip the first row if needed
+        if skip_header:
+            data = data.iloc[1:].reset_index(drop=True)
+
+        # Convert negative target_column to positive index
         if target_column < 0:
             target_column = len(data.columns) + target_column
 
+        # Extract the target column
         y = data.iloc[:, target_column]
-        X = data.drop(data.columns[target_column], axis=1)
+
+        # Create a list of columns to keep (all except target and drop_columns)
+        columns_to_drop = [target_column]
+
+        # Process drop_columns if provided
+        if drop_columns is not None:
+            for col in drop_columns:
+                # Convert negative indices to positive
+                if col < 0:
+                    col = len(data.columns) + col
+                columns_to_drop.append(col)
+
+        # Remove duplicates and sort in descending order to avoid index shifting
+        columns_to_drop = sorted(set(columns_to_drop), reverse=True)
+
+        # Keep only the columns we want for X
+        keep_columns = [i for i in range(len(data.columns)) if i not in columns_to_drop]
+        X = data.iloc[:, keep_columns]
 
         return {"X": X, "y": y}
