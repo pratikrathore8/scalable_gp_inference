@@ -1,13 +1,14 @@
 from dataclasses import dataclass
 
 from rlaopt.preconditioners import IdentityConfig
+from rlaopt.solvers import SolverConfig
 from rlaopt.utils import _is_pos_float, _is_pos_int, _is_torch_device
 
 import torch
 
 
 @dataclass(kw_only=True)
-class SDDConfig:
+class SDDConfig(SolverConfig):
     momentum: float
     step_size: float
     theta: float

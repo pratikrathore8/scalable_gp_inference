@@ -11,7 +11,7 @@ import json
 from urllib.request import urlopen
 from sklearn.datasets import fetch_openml
 
-from configs import DATA_DIR, DATASET_CONFIGS
+from experiments.data_processing.configs import DATA_DIR, DATASET_CONFIGS
 
 
 def get_metadata(dataset_name: str):

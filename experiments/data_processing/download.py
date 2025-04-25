@@ -1,5 +1,5 @@
-from configs import DATA_DIR, DATASET_CONFIGS
-from utils import create_dataframe
+from experiments.data_processing.configs import DATA_DIR, DATASET_CONFIGS
+from experiments.data_processing.utils import create_dataframe
 
 
 def download_dataset(dataset_name: str, *, force: bool = False):
