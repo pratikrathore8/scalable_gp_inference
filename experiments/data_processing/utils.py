@@ -1,5 +1,29 @@
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
+import torch
+
+
+def _standardize(
+    data_tr: np.ndarray, data_tst: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    reshaped = False
+
+    # If data is one dimensional, reshape to 2D
+    if len(data_tr.shape) == 1:
+        reshaped = True
+        data_tr = data_tr.reshape(-1, 1)
+        data_tst = data_tst.reshape(-1, 1)
+
+    scaler = StandardScaler()
+    data_tr = scaler.fit_transform(data_tr)
+    data_tst = scaler.transform(data_tst)
+
+    if reshaped:
+        data_tr = data_tr.flatten()
+        data_tst = data_tst.flatten()
+
+    return data_tr, data_tst
 
 
 def _ensure_float(data: np.ndarray):
@@ -23,6 +47,20 @@ def _convert_to_numpy(data: pd.DataFrame | pd.Series | np.ndarray) -> np.ndarray
         raise ValueError(
             "Unsupported data type. Must be DataFrame, Series, or ndarray."
         )
+
+
+def _numpy_to_torch(
+    data: dict[np.ndarray], dtype: torch.dtype, device: torch.device
+) -> dict[torch.Tensor]:
+    """
+    Convert a dictionary of numpy arrays to a dictionary of torch tensors.
+    """
+    for key, value in data.items():
+        if isinstance(value, np.ndarray):
+            data[key] = torch.from_numpy(value, dtype=dtype, device=device)
+        else:
+            raise ValueError("Unsupported data type. Must be numpy array.")
+    return data
 
 
 def _process_molecule(R: np.ndarray) -> np.ndarray:

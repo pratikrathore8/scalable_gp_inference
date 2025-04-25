@@ -7,9 +7,13 @@ import zipfile
 import numpy as np
 import pandas as pd
 from sklearn.datasets import fetch_openml
+from sklearn.model_selection import train_test_split
+import torch
 
 from experiments.data_processing.utils import (
+    _standardize,
     _convert_to_numpy,
+    _numpy_to_torch,
     _process_molecule,
     _convert_datetime_columns,
 )
@@ -21,9 +25,10 @@ SGDML_URL_STEM = "http://www.quantum-machine.org/gdml/data/npz"
 class _BaseDataset(ABC):
     name: str
     data_folder_name: str
-    train_proportion: float | None = (
+    split_proportion: float | None = (
         None  # Unnecessary for downloading, needed for loading
     )
+    split_shuffle: bool = True  # Unnecessary for downloading, needed for loading
     loading_seed: int | None = None  # Unnecessary for downloading, needed for loading
 
     def _check_save_path(self, save_path: str):
@@ -55,9 +60,51 @@ class _BaseDataset(ABC):
             data[key] = _convert_to_numpy(value)
         return data
 
-    # TODO(pratik): add more functions for actually loading the data into memory
-    # This should take care of things like splitting/shuffling data, dropping features,
-    # preprocessing molecule data, etc.
+    def split_data(
+        self, data: dict[np.ndarray, np.ndarray]
+    ) -> dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Split the data into training and testing sets.
+        """
+        Xtr, Xtst, ytr, ytst = train_test_split(
+            data["X"],
+            data["y"],
+            test_size=self.split_proportion,
+            shuffle=self.split_shuffle,
+            random_state=self.loading_seed,
+        )
+        return {
+            "Xtr": Xtr,
+            "Xtst": Xtst,
+            "ytr": ytr,
+            "ytst": ytst,
+        }
+
+    def standardize_data(
+        self, data: dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+    ) -> dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Standardize the data.
+        """
+        Xtr, Xtst = _standardize(data["Xtr"], data["Xtst"])
+        ytr, ytst = _standardize(data["ytr"], data["ytst"])
+        return {
+            "Xtr": Xtr,
+            "Xtst": Xtst,
+            "ytr": ytr,
+            "ytst": ytst,
+        }
+
+    def convert_to_torch(
+        self,
+        data: dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+        dtype: torch.dtype,
+        device: torch.device,
+    ) -> dict[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Convert the data to PyTorch tensors.
+        """
+        return _numpy_to_torch(data, dtype, device)
 
 
 @dataclass(kw_only=True, frozen=False)
