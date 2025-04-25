@@ -4,6 +4,7 @@ import os
 import requests
 import zipfile
 
+import h5py
 import numpy as np
 import pandas as pd
 from sklearn.datasets import fetch_openml
@@ -19,6 +20,7 @@ from experiments.data_processing.utils import (
 )
 
 SGDML_URL_STEM = "http://www.quantum-machine.org/gdml/data/npz"
+UCI_URL_STEM = "https://archive.ics.uci.edu/static/public"
 
 
 @dataclass(kw_only=True, frozen=False)
@@ -29,7 +31,7 @@ class _BaseDataset(ABC):
         None  # Unnecessary for downloading, needed for loading
     )
     split_shuffle: bool = True  # Unnecessary for downloading, needed for loading
-    loading_seed: int | None = None  # Unnecessary for downloading, needed for loading
+    split_seed: int | None = None  # Unnecessary for downloading, needed for loading
 
     def _check_save_path(self, save_path: str):
         """Check if the save path exists and create it if it doesn't."""
@@ -71,7 +73,7 @@ class _BaseDataset(ABC):
             data["y"],
             test_size=self.split_proportion,
             shuffle=self.split_shuffle,
-            random_state=self.loading_seed,
+            random_state=self.split_seed,
         )
         return {
             "Xtr": Xtr,
@@ -159,11 +161,26 @@ class SGDMLDataset(_BaseDataset):
 
 
 @dataclass(kw_only=True, frozen=False)
+class TaxiDataset(_BaseDataset):
+    def _raw_download(self, save_path: str):
+        raise NotImplementedError(
+            "Taxi dataset is not available for download. "
+            "Please provide the data manually."
+        )
+
+    def _raw_load(self, load_path: str):
+        with h5py.File(os.path.join(load_path, "data.h5py"), "r") as f:
+            X, y = f["X"][()], f["Y"][()]
+        y = np.squeeze(y)
+        return {"X": X, "y": y}
+
+
+@dataclass(kw_only=True, frozen=False)
 class UCIDataset(_BaseDataset):
     def _raw_download(self, save_path: str, id: int, uci_file_name: str):
         """Download the dataset from UCI, extract it, and clean up the zip file."""
         # Download the zip file
-        url = f"https://archive.ics.uci.edu/static/public/{id}/{uci_file_name}.zip"
+        url = f"{UCI_URL_STEM}/{id}/{uci_file_name}.zip"
         response = requests.get(url)
         zip_path = os.path.join(save_path, "data.zip")
         with open(zip_path, "wb") as f:
