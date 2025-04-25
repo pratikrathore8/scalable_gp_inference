@@ -108,6 +108,7 @@ def _train_exact_gp(
     Xtr: torch.Tensor,
     ytr: torch.Tensor,
     kernel_type: str,
+    opt_class: torch.optim.Optimizer,
     opt_hparams: dict,
     training_iters: int,
 ) -> GPHparams:
@@ -134,9 +135,9 @@ def _train_exact_gp(
     model.train()
     likelihood.train()
 
-    # Use Adam optimizer
+    # Initialize optimizer (typically Adam)
     # Includes GaussianLikelihood parameters
-    optimizer = torch.optim.Adam(model.parameters(), **opt_hparams)
+    optimizer = opt_class(model.parameters(), **opt_hparams)
 
     # "Loss" for GPs is the marginal log likelihood
     mll = ExactMarginalLogLikelihood(likelihood, model)
@@ -174,6 +175,7 @@ def train_exact_gp_subsampled(
     Xtr: torch.Tensor,
     ytr: torch.Tensor,
     kernel_type: str,
+    opt_class: torch.optim.Optimizer,
     opt_hparams: dict,
     training_iters: int,
     subsample_size: int,
@@ -194,6 +196,7 @@ def train_exact_gp_subsampled(
                 Xtr_subsampled,
                 ytr_subsampled,
                 kernel_type,
+                opt_class,
                 opt_hparams,
                 training_iters,
             )
@@ -202,6 +205,7 @@ def train_exact_gp_subsampled(
                 Xtr_subsampled,
                 ytr_subsampled,
                 kernel_type,
+                opt_class,
                 opt_hparams,
                 training_iters,
             )
