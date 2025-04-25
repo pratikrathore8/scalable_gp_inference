@@ -21,8 +21,10 @@ SGDML_URL_STEM = "http://www.quantum-machine.org/gdml/data/npz"
 class _BaseDataset(ABC):
     name: str
     data_folder_name: str
-    train_proportion: float | None = None  # Unnecessary for downloading
-    loading_seed: int | None = None  # Unnecessary for downloading
+    train_proportion: float | None = (
+        None  # Unnecessary for downloading, needed for loading
+    )
+    loading_seed: int | None = None  # Unnecessary for downloading, needed for loading
 
     def _check_save_path(self, save_path: str):
         """Check if the save path exists and create it if it doesn't."""
