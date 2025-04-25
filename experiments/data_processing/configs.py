@@ -6,44 +6,45 @@ DATASET_CONFIGS = {
     "3droad": {
         "source": "uci",
         "id": "246",
-        "download_url": "https://archive.ics.uci.edu/static/public/246/3d+road+network+north+jutland+denmark.zip",
+        "download_url": "https://archive.ics.uci.edu/static/public/246/3d+road+network+north+jutland+denmark.zip",  # noqa: E501
         "data_url": None,
         "num_instances": 434874,
         "num_features": 2,
         "target_columns": [3],
-        "ignore_columns": [0]
+        "ignore_columns": [0],
     },
     "song": {
         "source": "uci",
         "id": "203",
-        "download_url": "https://archive.ics.uci.edu/static/public/203/yearpredictionmsd.zip",
+        "download_url": "https://archive.ics.uci.edu/static/public/203/yearpredictionmsd.zip",  # noqa: E501
         "data_url": None,
         "num_instances": 515345,
         "num_features": 90,
         "target_columns": [0],
-        "ignore_columns": []
+        "ignore_columns": [],
     },
-    "buzz": { # This is aligned with Lin et al., where the regression task of the "buzz" dataset (only for Twitter) is used
+    "buzz": {
+        # This is aligned with Lin et al., where the regression task of
+        # the "buzz" dataset (only for Twitter) is used
         "source": "uci",
         "id": "248",
-        "download_url": "https://archive.ics.uci.edu/static/public/248/buzz+in+social+media.zip",
+        "download_url": "https://archive.ics.uci.edu/static/public/248/buzz+in+social+media.zip",  # noqa: E501
         "data_url": None,
         "num_instances": 583250,
         "num_features": 77,
         "target_columns": [-1],
-        "ignore_columns": []
+        "ignore_columns": [],
     },
     "houseelec": {
         "source": "uci",
         "id": "235",
-        "download_url": "https://archive.ics.uci.edu/static/public/235/individual+household+electric+power+consumption.zip",
+        "download_url": "https://archive.ics.uci.edu/static/public/235/individual+household+electric+power+consumption.zip",  # noqa: E501
         "data_url": "https://archive.ics.uci.edu/static/public/235/data.csv",
         "num_instances": 2049280,
         "num_features": 8,
-        "target_columns": ["Global_active_power"],   # In Lin et al.
-        "ignore_columns": []
+        "target_columns": ["Global_active_power"],  # In Lin et al.
+        "ignore_columns": [],
     },
-
     "acsincome": {
         "source": "openml",
         "id": 43141,
@@ -54,7 +55,7 @@ DATASET_CONFIGS = {
     },
     "benzene": {
         "source": "sgdml",
-        "download_url": "http://www.quantum-machine.org/gdml/data/npz/md17_benzene2017.npz",
+        "download_url": "http://www.quantum-machine.org/gdml/data/npz/md17_benzene2017.npz",  # noqa: E501
         "num_instances": 627983,
         "num_features": 66,
         "target_columns": ["E"],
@@ -62,7 +63,7 @@ DATASET_CONFIGS = {
     },
     "malonaldehyde": {
         "source": "sgdml",
-        "download_url": "http://www.quantum-machine.org/gdml/data/npz/md17_malonaldehyde.npz",
+        "download_url": "http://www.quantum-machine.org/gdml/data/npz/md17_malonaldehyde.npz",  # noqa: E501
         "num_instances": 993237,
         "num_features": 36,
         "target_columns": ["E"],

@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from pathlib import Path
-from dataset_configs import DATA_DIR, DATASET_CONFIGS
-from data_utils import set_column_roles, make_datetime_numeric
+
+from experiments.data_processing.configs import DATA_DIR, DATASET_CONFIGS
+from experiments.data_processing.utils import set_column_roles, make_datetime_numeric
 
 
 def preprocess_dataset(
@@ -15,11 +15,12 @@ def preprocess_dataset(
     normalize: bool,
     normalization_method: str,
     device: str,
-    random_state: int = 42
+    random_state: int,
 ) -> dict:
 
     """
-    Preprocesses the datasets in DATA_DIR / dataset_name and returns tensors directly in memory
+    Preprocesses the datasets in DATA_DIR / dataset_name and
+    returns tensors directly in memory
 
     Args:
         dataset_name: Short name of dataset from DATASET_CONFIGS
@@ -46,19 +47,20 @@ def preprocess_dataset(
 
     try:
         # Load the full dataframe
-        df = pd.read_csv(dataset_dir / f'{dataset_name}_df.csv')
+        df = pd.read_csv(dataset_dir / f"{dataset_name}_df.csv")
 
     except FileNotFoundError:
         raise ValueError(f"Dataset {dataset_name} not found in {DATA_DIR}")
 
-
     # Manage and validate columns
     set_column_roles(dataset_name)
     config = DATASET_CONFIGS[dataset_name]
-    target_columns = ['target']
+    target_columns = ["target"]
     ignore_columns = config.get("ignore_columns", [])
     exclude_columns = target_columns + ignore_columns
-    exclude_columns = [str(col) for col in exclude_columns] # Convert all of the header labels to strings to be sure
+    exclude_columns = [
+        str(col) for col in exclude_columns
+    ]  # Convert all of the header labels to strings to be sure
 
     for col in exclude_columns:
         if col not in df.columns:
@@ -72,7 +74,7 @@ def preprocess_dataset(
     y = df[target_columns]
 
     x_train, x_test, y_train, y_test = train_test_split(
-        x_features, y, test_size=test_split_ratio, random_state=42
+        x_features, y, test_size=test_split_ratio, random_state=random_state
     )
 
     # Separate and reshape features and labels
@@ -86,7 +88,7 @@ def preprocess_dataset(
     x_scaler, y_scaler = None, None
 
     if normalize:
-        if normalization_method == 'z_score':
+        if normalization_method == "z_score":
             # Feature normalization
             x_scaler = StandardScaler()
             x_train_proc = x_scaler.fit_transform(x_train)
@@ -98,21 +100,17 @@ def preprocess_dataset(
             y_test_proc = y_scaler.transform(y_test.reshape(-1, 1)).flatten()
 
             # Store parameters
-            normalization_params = {
-                'x_scaler': x_scaler,
-                'y_scaler': y_scaler
-            }
+            normalization_params = {"x_scaler": x_scaler, "y_scaler": y_scaler}
         else:
             print(f"Unsupported normalization method: {normalization_method}")
 
-
     # Convert to tensors and move to device
     data_dict = {
-        'x_train': torch.as_tensor(x_train_proc, device=device),
-        'y_train': torch.as_tensor(y_train_proc, device=device),
-        'x_test': torch.as_tensor(x_test_proc, device=device),
-        'y_test': torch.as_tensor(y_test_proc, device=device),
-        'normalization_params': normalization_params
+        "x_train": torch.as_tensor(x_train_proc, device=device),
+        "y_train": torch.as_tensor(y_train_proc, device=device),
+        "x_test": torch.as_tensor(x_test_proc, device=device),
+        "y_test": torch.as_tensor(y_test_proc, device=device),
+        "normalization_params": normalization_params,
     }
 
     print(f"Number of training samples for {dataset_name}: {len(data_dict['x_train'])}")
@@ -120,13 +118,3 @@ def preprocess_dataset(
     print(f"Device: {data_dict['x_train'].device}")
 
     return data_dict
-
-
-if __name__ == "__main__":
-    preprocess_dataset(
-        "buzz",
-        0.1,
-        np.float32,
-        True,
-        'z_score',
-        device="cuda" if torch.cuda.is_available() else "cpu")
