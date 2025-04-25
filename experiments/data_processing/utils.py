@@ -1,254 +1,132 @@
-import requests
-import pandas as pd
 import numpy as np
-from pathlib import Path
-import zipfile
-import tarfile
-from io import BytesIO
-import ssl
-import certifi
-import json
-from urllib.request import urlopen
-from sklearn.datasets import fetch_openml
-
-from experiments.data_processing.configs import DATA_DIR, DATASET_CONFIGS
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+import torch
 
 
-def get_metadata(dataset_name: str):
-    """Fetch dataset metadata from UCI API."""
-    dataset_id = DATASET_CONFIGS[dataset_name]["id"]
-    api_url = f"https://archive.ics.uci.edu/api/dataset?id={dataset_id}"
+def _standardize(
+    data_tr: np.ndarray, data_tst: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    reshaped = False
 
-    context = ssl.create_default_context(cafile=certifi.where())
+    # If data is one dimensional, reshape to 2D
+    if len(data_tr.shape) == 1:
+        reshaped = True
+        data_tr = data_tr.reshape(-1, 1)
+        data_tst = data_tst.reshape(-1, 1)
 
-    try:
-        with urlopen(api_url, context=context) as response:
-            return json.load(response)
-    except Exception as e:
-        print(f"Error fetching metadata for {dataset_name}: {e}")
-        return None
+    scaler = StandardScaler()
+    data_tr = scaler.fit_transform(data_tr)
+    data_tst = scaler.transform(data_tst)
 
+    if reshaped:
+        data_tr = data_tr.flatten()
+        data_tst = data_tst.flatten()
 
-def load_data_from_zip(dataset_dir):
-    """Load data from downloaded zip file."""
-    for file_path in dataset_dir.glob("**/*"):
-        if file_path.is_file() and not file_path.name.startswith("."):
-            try:
-                return pd.read_csv(file_path)
-            except RuntimeError:
-                try:
-                    return pd.read_csv(file_path, delim_whitespace=True, header=None)
-                except RuntimeError:
-                    continue
-    raise ValueError("No readable data files found in zip archive")
+    return data_tr, data_tst
 
 
-def print_compressed_members(zip_bytes: bytes, extract_root: Path):
-    """Echo every path inside buzz ZIP and the nested tar.gz."""
-    with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
-        for name in zf.namelist():
-            print("ZIP member →", name)  # first-layer listing
-            if name.endswith(".tar.gz"):
-                tar_bytes = zf.read(name)
-                with tarfile.open(fileobj=BytesIO(tar_bytes), mode="r:gz") as tf:
-                    for m in tf.getmembers():
-                        print("TAR member →", m.name)  # second-layer listing
-                    # unpack the tarball so files exist on disk
-                    tf.extractall(extract_root)
-                    print("Extracted TAR →", extract_root)
+def _ensure_float(data: np.ndarray):
+    """
+    Ensure that the data is of type float64.
+    """
+    if data.dtype != np.float64:
+        data = data.astype(np.float64)
+    return data
 
 
-def set_column_roles(dataset_name: str):
-    """Set target and ignore columns from metadata based on variable roles."""
-    if DATASET_CONFIGS[dataset_name]["target_columns"] is None:
-        metadata = get_metadata(dataset_name)
-        if not metadata:
-            raise ValueError(f"No metadata found for {dataset_name}")
-
-        variables = metadata.get("data", {}).get("variables", [])
-        target_columns = []
-        ignore_columns = []
-        roles_to_ignore = {"ID", "Other", "Ignore"}  # Define which roles to exclude
-
-        for var in variables:
-            var_name = var.get("name", "").strip()
-            if not var_name:
-                continue
-
-            role = var.get("role", "").strip()
-            if role == "Target":
-                target_columns.append(var_name)
-            elif role in roles_to_ignore:
-                ignore_columns.append(var_name)
-
-        # Update dataset configuration
-        DATASET_CONFIGS[dataset_name]["target_columns"] = target_columns
-        DATASET_CONFIGS[dataset_name]["ignore_columns"] = ignore_columns
-
-        if not target_columns:
-            raise ValueError(f"No target columns found for {dataset_name}")
-
-
-def make_datetime_numeric(
-    df, precision, date_col="Date", time_col="Time", drop_original=True
-):
-
-    dt = pd.to_datetime(
-        df[date_col] + " " + df[time_col], format="%d/%m/%Y %H:%M:%S", errors="coerce"
-    )
-    df = df.loc[dt.notna()].copy()
-    dt = dt.loc[dt.notna()]
-
-    # convert to seconds since epoch and store as float32
-    df["timestamp"] = dt.astype("int64") // 10**9  # seconds
-    df["timestamp"] = df["timestamp"].astype(precision)
-
-    if drop_original:
-        df = df.drop(columns=[date_col, time_col])
-
-    return df
-
-
-def columns_are_numeric(cols):
-    """check if all column names can be converted to numeric values.
-    If true, it indicates the data lacks headers."""
-    for col in cols:
-        try:
-            float(col)
-        except ValueError:
-            return False
-    return True
-
-
-def load_buzz_regression(zip_bytes: bytes, dataset_dir) -> pd.DataFrame:
-    """Return a tidy DF for Buzz regression, unpacking regression.tar.gz."""
-    with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
-        tar_bytes = zf.read("regression.tar.gz")
-    # unpack tar into dataset_dir/regression/
-    with tarfile.open(fileobj=BytesIO(tar_bytes), mode="r:gz") as tf:
-        tf.extractall(dataset_dir)  # creates regression/Twitter/…
-        # iterate .data files
-        dfs = []
-        for member in tf.getmembers():
-            if member.name.endswith(".data"):
-                part_path = dataset_dir / member.name
-                src = "twitter" if "Twitter" in member.name else "tomshw"
-                df_part = pd.read_csv(part_path, header=None, dtype=np.float32)
-                df_part["source"] = src
-                dfs.append(df_part)
-    if not dfs:
-        raise ValueError("No .data files inside regression.tar.gz")
-    raw_data = pd.concat(dfs, ignore_index=True)
-    raw_data = raw_data.dropna(axis=1, how="any")
-    twitter_rows = raw_data[raw_data["source"] == "twitter"]
-    data = twitter_rows.drop(columns=["source"])
-    x, y = data.iloc[:, :-1], data.iloc[:, -1]
-    df = x.copy()
-    df["target"] = y
-    return df
-
-
-def create_dataframe(dataset_name: str):
-    """Download the dataset, organize and assign the header labels,
-    and save as a dataframe"""
-    dataset_dir = DATA_DIR / dataset_name
-    dataset_dir.mkdir(parents=True, exist_ok=True)
-    config = DATASET_CONFIGS[dataset_name]
-    source = config["source"]
-    num_instances = config["num_instances"]
-    num_features = config["num_features"]
-
-    if source == "openml":
-        data, target = fetch_openml(
-            data_id=config["id"], return_X_y=True, as_frame=True
-        )
-        df = pd.DataFrame(data)
-        df["target"] = target
-        df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
-
-        print(
-            f"Downloaded and saved {dataset_name} | "
-            f"Number of instances: {num_instances} | Number of features: {num_features}"
-        )
-
-        return df
-
-    elif source == "sgdml":
-        response = requests.get(config["download_url"])
-        npz_data = np.load(BytesIO(response.content))
-
-        # Process molecule (from fast_krr github repo: _process_molecule)
-        R = npz_data["R"]
-        X = (
-            np.sum((R[:, :, np.newaxis, :] - R[:, np.newaxis, :, :]) ** 2, axis=-1)
-            ** 0.5
-        )
-        X = (
-            X[:, np.triu_indices(R.shape[1], 1)[0], np.triu_indices(R.shape[1], 1)[1]]
-            ** -1.0
-        )
-
-        y = npz_data["E"].squeeze()
-        df = pd.DataFrame(X, columns=[f"feat_{i}" for i in range(X.shape[1])])
-        df["target"] = y
-        df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
-
-        print(
-            f"Downloaded and saved {dataset_name} | "
-            f"Number of instances: {num_instances} | Number of features: {num_features}"
-        )
-
-        return df
-
-    elif dataset_name == "buzz":
-        response = requests.get(config["download_url"])
-        print_compressed_members(response.content, dataset_dir)
-        df = load_buzz_regression(response.content, dataset_dir)
-        df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
-        print(
-            f"Downloaded and saved {dataset_name} | "
-            f"Number of instances: {num_instances} | Number of features: {num_features}"
-        )
-        return df
-
+def _convert_to_numpy(data: pd.DataFrame | pd.Series | np.ndarray) -> np.ndarray:
+    """
+    Convert a pandas DataFrame, Series, or numpy array to a numpy array.
+    """
+    if isinstance(data, (pd.DataFrame, pd.Series)):
+        return _ensure_float(data.to_numpy())
+    elif isinstance(data, np.ndarray):
+        return _ensure_float(data)
     else:
-        # Get column roles from metadata
-        set_column_roles(dataset_name)
-        target_columns = config["target_columns"]
-        ignore_columns = config.get("ignore_columns", [])
-
-        # Load data
-        if config["data_url"]:
-            response = requests.get(config["data_url"])
-            data = pd.read_csv(BytesIO(response.content), na_values=["?"])
-            data = data.dropna()
-        else:
-            response = requests.get(config["download_url"])
-            with zipfile.ZipFile(BytesIO(response.content)) as zip_ref:
-                zip_ref.extractall(dataset_dir)
-            data = load_data_from_zip(dataset_dir)
-
-        # Check if columns are numeric strings and reset if necessary
-        if columns_are_numeric(data.columns.astype(str)):
-            new_row = data.columns.to_numpy()
-            data.columns = range(data.shape[1])
-            data = pd.DataFrame(
-                np.vstack([new_row, data.to_numpy()]), columns=data.columns
-            )
-
-        # create full dataframe
-        x = data.drop(columns=target_columns)
-        y = data[target_columns]
-
-        df = x.copy()
-        df["target"] = y
-
-        df.to_csv(dataset_dir / f"{dataset_name}_df.csv", index=False)
-
-        print(
-            f"Downloaded and saved {dataset_name} | "
-            f"Number of instances: {num_instances} | Number of features: {num_features}"
+        raise ValueError(
+            "Unsupported data type. Must be DataFrame, Series, or ndarray."
         )
-        print(f"Columns to drop: {ignore_columns}")
 
-        return df
+
+def _numpy_to_torch(
+    data: dict[np.ndarray], dtype: torch.dtype, device: torch.device
+) -> dict[torch.Tensor]:
+    """
+    Convert a dictionary of numpy arrays to a dictionary of torch tensors.
+    """
+    for key, value in data.items():
+        if isinstance(value, np.ndarray):
+            data[key] = torch.tensor(value, dtype=dtype, device=device)
+        else:
+            raise ValueError("Unsupported data type. Must be numpy array.")
+    return data
+
+
+def _process_molecule(R: np.ndarray) -> np.ndarray:
+    n_atoms = R.shape[1]
+    X = np.sum((R[:, :, np.newaxis, :] - R[:, np.newaxis, :, :]) ** 2, axis=-1) ** 0.5
+    X = X[:, np.triu_indices(n_atoms, 1)[0], np.triu_indices(n_atoms, 1)[1]] ** -1.0
+
+    return X
+
+
+def _convert_datetime_columns(
+    df: pd.DataFrame, datetime_columns: list[int]
+) -> pd.DataFrame:
+    """
+    Convert specified date/time columns in a DataFrame to numerical values.
+
+    Args:
+        df: pandas DataFrame to process (will be modified in-place)
+        datetime_columns: List of column indices to convert from datetime to numerical.
+
+    Returns:
+        The modified DataFrame with specified date/time columns
+          converted to numerical values
+    """
+    # Convert negative indices to positive if needed
+    processed_indices = []
+    for idx in datetime_columns:
+        if idx < 0:
+            idx = len(df.columns) + idx
+        processed_indices.append(idx)
+
+    # Get the actual column names from indices
+    columns_to_convert = [
+        df.columns[idx] for idx in processed_indices if 0 <= idx < len(df.columns)
+    ]
+
+    for col in columns_to_convert:
+        try:
+            # Convert to datetime
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+
+            # Check if dates are all at midnight (no time component)
+            has_time_component = False
+            non_null = df[col].dropna()
+
+            if len(non_null) > 0:
+                has_time_component = any(
+                    (t.hour != 0 or t.minute != 0 or t.second != 0)
+                    for t in non_null.dt.time
+                )
+
+            # Convert to a numerical representation
+            if has_time_component:
+                # If there's a time component, use unix timestamp (seconds since epoch)
+                # nanoseconds to seconds
+                df[col] = df[col].astype("int64") // 10**9
+            else:
+                # If it's just dates (no time), use days since a reference date
+                reference_date = pd.Timestamp("1970-01-01")
+                df[col] = (df[col] - reference_date).dt.days
+
+        except (TypeError, ValueError) as e:
+            print(
+                "Failed to convert column at index "
+                f"{processed_indices[columns_to_convert.index(col)]}: {e}"
+            )
+            continue
+
+    return df

@@ -1,39 +1,68 @@
-from experiments.data_processing.configs import DATA_DIR, DATASET_CONFIGS
-from experiments.data_processing.utils import create_dataframe
+from .datasets import OpenMLDataset, SGDMLDataset, UCIDataset
 
+_SAVE_PATH = "data"
 
-def download_dataset(dataset_name: str, *, force: bool = False):
-    """
-    Download and save one dataset as a DataFrame in a csv file.
+_ACSINCOME = {
+    "class": OpenMLDataset,
+    "class_kwargs": {"name": "acsincome", "data_folder_name": "acsincome"},
+    "download_kwargs": {"save_path": _SAVE_PATH, "id": 43141},
+}
+_YOLANDA = {
+    "class": OpenMLDataset,
+    "class_kwargs": {"name": "yolanda", "data_folder_name": "yolanda"},
+    "download_kwargs": {"save_path": _SAVE_PATH, "id": 42705},
+}
+_MALONALDEHYDE = {
+    "class": SGDMLDataset,
+    "class_kwargs": {"name": "malonaldehyde", "data_folder_name": "malonaldehyde"},
+    "download_kwargs": {"save_path": _SAVE_PATH, "molecule": "md17_malonaldehyde"},
+}
+_BENZENE = {
+    "class": SGDMLDataset,
+    "class_kwargs": {"name": "benzene", "data_folder_name": "benzene"},
+    "download_kwargs": {"save_path": _SAVE_PATH, "molecule": "md17_benzene2017"},
+}
+_3DROAD = {
+    "class": UCIDataset,
+    "class_kwargs": {"name": "3droad", "data_folder_name": "3droad"},
+    "download_kwargs": {
+        "save_path": _SAVE_PATH,
+        "id": 246,
+        "uci_file_name": "3d+road+network+north+jutland+denmark",
+    },
+}
+_SONG = {
+    "class": UCIDataset,
+    "class_kwargs": {"name": "song", "data_folder_name": "song"},
+    "download_kwargs": {
+        "save_path": _SAVE_PATH,
+        "id": 203,
+        "uci_file_name": "yearpredictionmsd",
+    },
+}
+_HOUSEELEC = {
+    "class": UCIDataset,
+    "class_kwargs": {"name": "houseelec", "data_folder_name": "houseelec"},
+    "download_kwargs": {
+        "save_path": _SAVE_PATH,
+        "id": 235,
+        "uci_file_name": "individual+household+electric+power+consumption",
+    },
+}
 
-    Args:
-        dataset_name : str
-        force : bool
-               Re-download even if the processed CSV already exists.
-    """
-    dataset_path = DATA_DIR / dataset_name / f"{dataset_name}_df.csv"
-    if not force and dataset_path.exists():
-        print(f"The {dataset_name} dataset already exists in {dataset_path}")
-        return
-    return create_dataframe(dataset_name)
-
-
-def download_all_datasets(dataset_names=None, *, force: bool = False):
-    """
-    Loop over the registry and make sure every dataset is ready.
-
-    Args:
-        dataset_names : list[str] | None
-                       Subset of dataset names to process; None → all available.
-                       Defaulted to None (so it downloads all)
-        force : bool
-               Re-download even if the processed CSV already exists.
-    """
-    dataset_names = dataset_names or DATASET_CONFIGS.keys()
-    for dataset_name in dataset_names:
-        print(f"→ Downloading {dataset_name}")
-        download_dataset(dataset_name, force=force)
+_DOWNLOAD_CONFIGS = [
+    _ACSINCOME,
+    _YOLANDA,
+    _MALONALDEHYDE,
+    _BENZENE,
+    _3DROAD,
+    _SONG,
+    _HOUSEELEC,
+]
 
 
 if __name__ == "__main__":
-    download_all_datasets()
+    for config in _DOWNLOAD_CONFIGS:
+        dataset = config["class"](**config["class_kwargs"])
+        dataset.download(**config["download_kwargs"])
+        print(f"Downloaded {dataset.name} dataset")
