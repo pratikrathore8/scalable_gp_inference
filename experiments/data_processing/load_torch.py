@@ -1,4 +1,4 @@
-from datasets import OpenMLDataset, SGDMLDataset, TaxiDataset, UCIDataset
+from .datasets import OpenMLDataset, SGDMLDataset, TaxiDataset, UCIDataset
 
 import torch
 

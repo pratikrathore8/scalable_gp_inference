@@ -11,7 +11,7 @@ from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 import torch
 
-from utils import (
+from .utils import (
     _standardize,
     _convert_to_numpy,
     _numpy_to_torch,
@@ -21,6 +21,14 @@ from utils import (
 
 SGDML_URL_STEM = "http://www.quantum-machine.org/gdml/data/npz"
 UCI_URL_STEM = "https://archive.ics.uci.edu/static/public"
+
+
+@dataclass(kw_only=True, frozen=True)
+class SplitData:
+    Xtr: torch.Tensor
+    Xtst: torch.Tensor
+    ytr: torch.Tensor
+    ytst: torch.Tensor
 
 
 @dataclass(kw_only=True, frozen=False)
@@ -54,15 +62,15 @@ class _BaseDataset(ABC):
         """Load the dataset from the specified location."""
         pass
 
-    def load(self, load_path: str, *args, **kwargs) -> dict[np.ndarray, np.ndarray]:
-        """Load the dataset from the specified location."""
+    def _load(self, load_path: str, *args, **kwargs) -> dict[np.ndarray, np.ndarray]:
+        """Load the dataset from the specified location as numpy arrays."""
         joined_load_path = os.path.join(load_path, self.data_folder_name)
         data = self._raw_load(joined_load_path, *args, **kwargs)
         for key, value in data.items():
             data[key] = _convert_to_numpy(value)
         return data
 
-    def split_data(
+    def _split_data(
         self, data: dict[np.ndarray, np.ndarray]
     ) -> dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -82,7 +90,7 @@ class _BaseDataset(ABC):
             "ytst": ytst,
         }
 
-    def standardize_data(
+    def _standardize_data(
         self, data: dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
     ) -> dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -97,7 +105,7 @@ class _BaseDataset(ABC):
             "ytst": ytst,
         }
 
-    def convert_to_torch(
+    def _convert_to_torch(
         self,
         data: dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
         dtype: torch.dtype,
@@ -118,16 +126,16 @@ class _BaseDataset(ABC):
         **kwargs,  # useful for load()
     ) -> dict[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # Load data
-        data = self.load(load_path, *args, **kwargs)
+        data = self._load(load_path, *args, **kwargs)
 
         # Split and (potentially) standardize the data
-        data_split = self.split_data(data)
+        data_split = self._split_data(data)
         if standardize:
-            data_split = self.standardize_data(data_split)
+            data_split = self._standardize_data(data_split)
 
         # Convert to PyTorch tensors on the specified device
-        data_split = self.convert_to_torch(data_split, dtype, device)
-        return data_split
+        data_split = self._convert_to_torch(data_split, dtype, device)
+        return SplitData(**data_split)
 
 
 @dataclass(kw_only=True, frozen=False)

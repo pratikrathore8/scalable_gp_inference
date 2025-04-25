@@ -1,4 +1,4 @@
-from datasets import OpenMLDataset, SGDMLDataset, UCIDataset
+from .datasets import OpenMLDataset, SGDMLDataset, UCIDataset
 
 _SAVE_PATH = "data"
 
@@ -61,12 +61,8 @@ _DOWNLOAD_CONFIGS = [
 ]
 
 
-def download_data():
+if __name__ == "__main__":
     for config in _DOWNLOAD_CONFIGS:
         dataset = config["class"](**config["class_kwargs"])
         dataset.download(**config["download_kwargs"])
         print(f"Downloaded {dataset.name} dataset")
-
-
-if __name__ == "__main__":
-    download_data()
