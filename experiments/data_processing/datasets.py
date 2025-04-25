@@ -124,7 +124,7 @@ class _BaseDataset(ABC):
         device: torch.device,
         *args,  # useful for load()
         **kwargs,  # useful for load()
-    ) -> dict[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> SplitData:
         # Load data
         data = self._load(load_path, *args, **kwargs)
 
