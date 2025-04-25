@@ -4,8 +4,11 @@ import os
 import requests
 import zipfile
 
+import numpy as np
 import pandas as pd
 from sklearn.datasets import fetch_openml
+
+from experiments.data_processing.utils import _convert_to_numpy, _process_molecule
 
 SGDML_URL_STEM = "http://www.quantum-machine.org/gdml/data/npz"
 
@@ -33,10 +36,18 @@ class _BaseDataset(ABC):
         self._check_save_path(joined_save_path)
         self._raw_download(joined_save_path, *args, **kwargs)
 
-    # @abstractmethod
-    # def load(self, load_path: str, *args, **kwargs):
-    #     """Load the dataset from the specified location."""
-    #     pass
+    @abstractmethod
+    def _raw_load(self, load_path: str, *args, **kwargs):
+        """Load the dataset from the specified location."""
+        pass
+
+    def load(self, load_path: str, *args, **kwargs):
+        """Load the dataset from the specified location."""
+        joined_load_path = os.path.join(load_path, self.data_folder_name)
+        data = self._raw_load(joined_load_path, *args, **kwargs)
+        for key, value in data.items():
+            data[key] = _convert_to_numpy(value)
+        return data
 
     # The load function should read data from memory and also
     #  drop the appropriate features
@@ -54,6 +65,11 @@ class OpenMLDataset(_BaseDataset):
         pd.to_pickle(data, os.path.join(save_path, "data.pkl"))
         pd.to_pickle(target, os.path.join(save_path, "target.pkl"))
 
+    def _raw_load(self, load_path: str):
+        X = pd.read_pickle(os.path.join(load_path, "data.pkl"))
+        y = pd.read_pickle(os.path.join(load_path, "target.pkl"))
+        return {"X": X, "y": y}
+
 
 @dataclass(kw_only=True, frozen=False)
 class SGDMLDataset(_BaseDataset):
@@ -63,6 +79,12 @@ class SGDMLDataset(_BaseDataset):
         response = requests.get(url)
         with open(os.path.join(save_path, "data.npz"), "wb") as f:
             f.write(response.content)
+
+    def _raw_load(self, load_path: str):
+        data = np.load(os.path.join(load_path, "data.npz"))
+        X = _process_molecule(data["R"])
+        y = np.squeeze(data["E"])
+        return {"X": X, "y": y}
 
 
 @dataclass(kw_only=True, frozen=False)
@@ -107,3 +129,55 @@ class UCIDataset(_BaseDataset):
                 f"Warning: Multiple .txt files found in {save_path}. "
                 f"Renamed {txt_files[0]} to data.txt."
             )
+
+    def _raw_load(
+        self,
+        load_path: str,
+        target_column: int = -1,
+        skip_header: bool = False,
+        delimiter: str = None,
+    ):
+        """
+        Load the dataset from a text file.
+
+        Args:
+            load_path: Path to the directory containing the data.txt file
+            target_column: Index of the target column (negative indexing allowed)
+            skip_header: Whether to skip the first row (usually for column headers)
+            delimiter: Delimiter for the text file.
+            If None, attempts to detect automatically
+
+        Returns:
+            Dictionary with 'X' and 'y' keys containing features and target
+        """
+        file_path = os.path.join(load_path, "data.txt")
+
+        # Try to automatically determine the delimiter if not provided
+        if delimiter is None:
+            with open(file_path, "r") as f:
+                first_line = f.readline().strip()
+                if "," in first_line:
+                    delimiter = ","
+                elif "\t" in first_line:
+                    delimiter = "\t"
+                elif ";" in first_line:
+                    delimiter = ";"
+                else:
+                    delimiter = " "  # Default to space
+
+        # Read the data with pandas
+        data = pd.read_csv(
+            file_path,
+            delimiter=delimiter,
+            header=0 if skip_header else None,
+            engine="python",  # More flexible handling of delimiters
+        )
+
+        # Extract X and y
+        if target_column < 0:
+            target_column = len(data.columns) + target_column
+
+        y = data.iloc[:, target_column]
+        X = data.drop(data.columns[target_column], axis=1)
+
+        return {"X": X, "y": y}
