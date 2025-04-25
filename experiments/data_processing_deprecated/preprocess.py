@@ -4,8 +4,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from experiments.data_processing.configs import DATA_DIR, DATASET_CONFIGS
-from experiments.data_processing.utils import set_column_roles, make_datetime_numeric
+from experiments.data_processing_deprecated.configs import DATA_DIR, DATASET_CONFIGS
+from experiments.data_processing_deprecated.utils import (
+    set_column_roles,
+    make_datetime_numeric,
+)
 
 
 def preprocess_dataset(
