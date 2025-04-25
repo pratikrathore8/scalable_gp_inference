@@ -59,6 +59,16 @@ class GPHparams:
         if self.noise_variance < 0:
             raise ValueError("noise_variance must be non-negative")
 
+    def to(self, device: torch.device) -> "GPHparams":
+        """Move GPHparams to a specified device."""
+        return GPHparams(
+            signal_variance=self.signal_variance,
+            kernel_lengthscale=self.kernel_lengthscale.to(device)
+            if isinstance(self.kernel_lengthscale, torch.Tensor)
+            else self.kernel_lengthscale,
+            noise_variance=self.noise_variance,
+        )
+
     def __add__(self, other: "GPHparams") -> "GPHparams":
         """Add two GPHparams instances, returning a new instance."""
         if not isinstance(other, GPHparams):
