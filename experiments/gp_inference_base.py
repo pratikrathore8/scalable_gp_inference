@@ -51,12 +51,12 @@ def parse_arguments():
     )
     parser.add_argument(
         "--split_shuffle",
-        type=bool,
+        action="store_true",
         help="Whether to shuffle the data before splitting",
     )
     parser.add_argument(
         "--standardize",
-        type=bool,
+        action="store_true",
         help="Whether to standardize the data",
     )
     parser.add_argument(
@@ -76,7 +76,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--use_full_kernel",
-        type=bool,
+        action="store_true",
         help="Whether to use the full kernel during inference",
     )
     parser.add_argument(
@@ -86,7 +86,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--log_in_wandb",
-        type=bool,
+        action="store_true",
         help="Whether to log results in Weights & Biases",
     )
     parser.add_argument(
@@ -174,7 +174,7 @@ def main():
         num_posterior_samples=args.num_posterior_samples,
         num_random_features=args.num_random_features,
         distributed=len(args.devices) > 1,
-        devices=args.devices,
+        devices=set(args.devices),
     )
 
     wandb_init_kwargs = {
@@ -190,11 +190,13 @@ def main():
             "max_passes": args.opt_max_passes,
             "opt_num_blocks": args.opt_num_blocks,
             "opt_step_size_unscaled": args.opt_step_size_unscaled,
+            "use_full_kernel": args.use_full_kernel,
+            "eval_freq": args.eval_freq,
         },
     }
 
     # Run inference
-    results = model.run_inference(
+    results = model.perform_inference(
         solver_config=solver_config,
         W_init=None,
         use_full_kernel=args.use_full_kernel,
@@ -204,3 +206,7 @@ def main():
     )
 
     return results
+
+
+if __name__ == "__main__":
+    main()

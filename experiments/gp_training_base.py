@@ -52,12 +52,12 @@ def parse_arguments():
     )
     parser.add_argument(
         "--split_shuffle",
-        type=bool,
+        action="store_true",
         help="Whether to shuffle the data before splitting",
     )
     parser.add_argument(
         "--standardize",
-        type=bool,
+        action="store_true",
         help="Whether to standardize the data",
     )
     parser.add_argument(

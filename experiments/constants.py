@@ -51,7 +51,7 @@ GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
     "houseelec": 64,
 }
 GP_INFERENCE_NUM_RANDOM_FEATURES = 2048
-GP_INFERENCE_USE_FULL_KERNEL = False
+GP_INFERENCE_USE_FULL_KERNEL = True
 
 # Optimizer parameters for GP inference
 OPT_TYPES = ["pcg", "sap", "sdd"]

@@ -117,13 +117,13 @@ def get_solver_config(
 ):
     # Get preconditioner config
     if preconditioner == "nystrom":
-        preconditioner_config = NystromConfig(
+        precond_config = NystromConfig(
             rank=rank,
-            regularization=regularization,
-            damping=damping,
+            rho=regularization,
+            damping_mode=damping,
         )
     elif preconditioner == "identity":
-        preconditioner_config = IdentityConfig()
+        precond_config = IdentityConfig()
     else:
         raise ValueError(f"Unknown preconditioner: {preconditioner}")
 
@@ -143,13 +143,15 @@ def get_solver_config(
     }
     if opt_type == "pcg":
         solver_config = PCGConfig(
-            preconditioner=preconditioner_config,
+            precond_config=precond_config,
             **solver_config_base_kwargs,
         )
     elif opt_type == "sap":
-        accel_config = SAPAccelConfig(mu=regularization, nu=blocks)
+        nu = float(blocks)
+        mu = min(regularization, 1 / nu)  # Ensure mu * nu <= 1
+        accel_config = SAPAccelConfig(mu=mu, nu=nu)
         solver_config = SAPConfig(
-            preconditioner=preconditioner_config,
+            precond_config=precond_config,
             blk_sz=ntr // blocks,
             accel_config=accel_config,
             **solver_config_base_kwargs,
