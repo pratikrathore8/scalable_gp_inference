@@ -146,6 +146,9 @@ def main():
     gp_hparams = get_saved_gp_hparams(args.dataset, args.kernel_type, args.seed)
     gp_hparams = gp_hparams.to(device=args.devices[0], dtype=args.dtype)
 
+    # Load the dataset for inference
+    dataset = load_dataset(args, device=args.devices[0])
+
     # Get solver configuration
     solver_config = get_solver_config(
         opt_type=args.opt_type,
@@ -156,10 +159,9 @@ def main():
         damping=args.opt_damping,
         blocks=args.opt_num_blocks,
         step_size_unscaled=args.opt_step_size_unscaled,
+        ntr=dataset.Xtr.shape[0],
+        device=args.devices[0],
     )
-
-    # Load the dataset for inference
-    dataset = load_dataset(args, device=args.devices[0])
 
     # Get GP inference object
     model = GPInference(

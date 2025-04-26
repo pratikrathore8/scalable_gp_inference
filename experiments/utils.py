@@ -6,16 +6,18 @@ import random
 import numpy as np
 import torch
 
-# from rlaopt.preconditioners import IdentityConfig, NystromConfig
-# from rlaopt.solvers import PCGConfig, SAPConfig, SAPAccelConfig
-# from scalable_gp_inference.sdd_config import SDDConfig
+from rlaopt.preconditioners import IdentityConfig, NystromConfig
+from rlaopt.solvers import PCGConfig, SAPConfig, SAPAccelConfig
+from scalable_gp_inference.sdd_config import SDDConfig
 
 from experiments.data_processing.load_torch import LOADERS
 from experiments.constants import (
     GP_TRAIN_SAVE_DIR,
     GP_TRAIN_SAVE_FILE_NAME,
-    # OPT_ATOL,
-    # OPT_RTOL,
+    OPT_ATOL,
+    OPT_RTOL,
+    OPT_SDD_MOMENTUM,
+    OPT_SDD_THETA_UNSCALED,
 )
 
 
@@ -115,11 +117,58 @@ def get_solver_config(
     damping: str,
     blocks: int,
     step_size_unscaled: float,
+    ntr: int,
+    device: torch.device,
 ):
-    raise NotImplementedError(
-        "This function is not implemented. Please implement "
-        "the function to get the solver configuration."
-    )
+    # Get preconditioner config
+    if preconditioner == "nystrom":
+        preconditioner_config = NystromConfig(
+            rank=rank,
+            regularization=regularization,
+            damping=damping,
+        )
+    elif preconditioner == "identity":
+        preconditioner_config = IdentityConfig()
+    else:
+        raise ValueError(f"Unknown preconditioner: {preconditioner}")
+
+    if opt_type == "pcg":
+        max_iters = max_passes
+    elif opt_type in ["sap", "sdd"]:
+        max_iters = max_passes * blocks
+    else:
+        raise ValueError(f"Unknown optimization type: {opt_type}")
+
+    # Get solver config
+    solver_config_base_kwargs = {
+        "device": device,
+        "max_iters": max_iters,
+        "atol": OPT_ATOL,
+        "rtol": OPT_RTOL,
+    }
+    if opt_type == "pcg":
+        solver_config = PCGConfig(
+            preconditioner=preconditioner_config,
+            **solver_config_base_kwargs,
+        )
+    elif opt_type == "sap":
+        accel_config = SAPAccelConfig(mu=regularization, nu=blocks)
+        solver_config = SAPConfig(
+            preconditioner=preconditioner_config,
+            blk_sz=ntr // blocks,
+            accel_config=accel_config,
+            **solver_config_base_kwargs,
+        )
+    elif opt_type == "sdd":
+        solver_config = SDDConfig(
+            momentum=OPT_SDD_MOMENTUM,
+            step_size=step_size_unscaled / ntr,
+            theta=OPT_SDD_THETA_UNSCALED / max_iters,
+            blk_sz=ntr // blocks,
+            **solver_config_base_kwargs,
+        )
+
+    return solver_config
 
 
 def get_gp_hparams_save_file_dir(
