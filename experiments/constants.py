@@ -54,6 +54,7 @@ GP_INFERENCE_NUM_RANDOM_FEATURES = 2048
 GP_INFERENCE_USE_FULL_KERNEL = False
 
 # Optimizer parameters for GP inference
+OPT_TYPES = ["pcg", "sap", "sdd"]
 OPT_ATOL = 1e-12  # So small that nothing terminates early
 OPT_RTOL = 1e-12  # So small that nothing terminates early
 OPT_RANK = 100
