@@ -59,13 +59,23 @@ class GPHparams:
         if self.noise_variance < 0:
             raise ValueError("noise_variance must be non-negative")
 
-    def to(self, device: torch.device) -> "GPHparams":
-        """Move GPHparams to a specified device."""
+    def to(self, device: torch.device = None, dtype: torch.dtype = None) -> "GPHparams":
+        """Move GPHparams to a specified device and/or convert to a specified dtype."""
+        # If kernel_lengthscale is not a tensor,
+        # then there's nothing to convert, so return self
+        if not isinstance(self.kernel_lengthscale, torch.Tensor):
+            return self
+
+        # Handle tensor conversion
+        lengthscale = self.kernel_lengthscale.to(device=device, dtype=dtype)
+
+        # Only create a new instance if the tensor actually changed
+        if lengthscale is self.kernel_lengthscale:
+            return self
+
         return GPHparams(
             signal_variance=self.signal_variance,
-            kernel_lengthscale=self.kernel_lengthscale.to(device)
-            if isinstance(self.kernel_lengthscale, torch.Tensor)
-            else self.kernel_lengthscale,
+            kernel_lengthscale=lengthscale,
             noise_variance=self.noise_variance,
         )
 

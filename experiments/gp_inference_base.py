@@ -1,17 +1,20 @@
 import argparse
 
-# import os
-# import pickle
+from scalable_gp_inference.gp_inference import GPInference
 
-# from scalable_gp_inference.gp_inference import GPInference
-
-from experiments.constants import DATA_NAMES, EXPERIMENT_KERNELS
+from experiments.data_processing.load_torch import LOADERS
+from experiments.constants import (
+    DATA_NAMES,
+    EXPERIMENT_KERNELS,
+    LOGGING_WANDB_PROJECT_BASE_NAME,
+)
 from experiments.utils import (
     device_type,
     dtype_type,
     none_or_str,
-    # set_random_seed,
-    # get_saved_gp_hparams,
+    set_random_seed,
+    get_solver_config,
+    get_saved_gp_hparams,
 )
 
 
@@ -86,6 +89,12 @@ def parse_arguments():
         help="Whether to log results in Weights & Biases",
     )
     parser.add_argument(
+        "--opt_type",
+        type=str,
+        choices=["pcg", "sap", "sdd"],
+        help="Type of optimization algorithm to use",
+    )
+    parser.add_argument(
         "--opt_max_passes",
         type=int,
         help="Maximum number of passes for the optimizer",
@@ -109,7 +118,7 @@ def parse_arguments():
         help="Damping for the preconditioner -- nystrom only",
     )
     parser.add_argument(
-        "--opt_blocks",
+        "--opt_num_blocks",
         type=int,
         default=None,
         help="Number of blocks for the optimizer -- SAP and SDD only",
@@ -121,3 +130,81 @@ def parse_arguments():
         help="Step size for the optimizer -- SDD only",
     )
     return parser.parse_args()
+
+
+def main():
+    args = parse_arguments()
+
+    # Set random seed for reproducibility
+    set_random_seed(args.seed)
+
+    # Load the GP hyperparameters
+    gp_hparams = get_saved_gp_hparams(args.dataset, args.kernel_type, args.seed)
+    gp_hparams = gp_hparams.to(device=args.devices[0], dtype=args.dtype)
+
+    # Get solver configuration
+    solver_config = get_solver_config(
+        opt_type=args.opt_type,
+        max_passes=args.opt_max_passes,
+        preconditioner=args.opt_preconditioner,
+        rank=args.opt_rank,
+        regularization=gp_hparams.noise_variance,
+        damping=args.opt_damping,
+        blocks=args.opt_num_blocks,
+        step_size_unscaled=args.opt_step_size_unscaled,
+    )
+
+    # Load the dataset
+    # TODO(pratik): make this a utility function to reduce code duplication
+    # with gp_training_base.py
+    loader_fn = LOADERS[args.dataset]
+    dataset = loader_fn(
+        split_proportion=args.split_proportion,
+        split_shuffle=args.split_shuffle,
+        split_seed=args.seed,
+        standardize=args.standardize,
+        dtype=args.dtype,
+        device=args.devices[0],
+    )
+
+    # Get GP inference object
+    model = GPInference(
+        Xtr=dataset.Xtr,
+        ytr=dataset.ytr,
+        Xtst=dataset.Xtst,
+        ytst=dataset.ytst,
+        kernel_type=args.kernel_type,
+        kernel_hparams=gp_hparams,
+        num_posterior_samples=args.num_posterior_samples,
+        num_random_features=args.num_random_features,
+        distributed=len(args.devices) > 1,
+        devices=args.devices,
+    )
+
+    wandb_init_kwargs = {
+        "project": f"{LOGGING_WANDB_PROJECT_BASE_NAME}_{args.dataset}",
+        "config": {
+            "dataset": args.dataset,
+            "ntr": dataset.Xtr.shape[0],
+            "ntst": dataset.Xtst.shape[0],
+            "p": dataset.Xtr.shape[1],
+            "kernel_type": args.kernel_type,
+            "seed": args.seed,
+            "all_devices": args.devices,
+            "max_passes": args.opt_max_passes,
+            "opt_num_blocks": args.opt_num_blocks,
+            "opt_step_size_unscaled": args.opt_step_size_unscaled,
+        },
+    }
+
+    # Run inference
+    results = model.run_inference(
+        solver_config=solver_config,
+        W_init=None,
+        use_full_kernel=args.use_full_kernel,
+        eval_freq=args.eval_freq,
+        log_in_wandb=args.log_in_wandb,
+        wandb_init_kwargs=wandb_init_kwargs if args.log_in_wandb else {},
+    )
+
+    return results

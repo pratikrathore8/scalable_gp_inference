@@ -89,8 +89,8 @@ def main():
     set_random_seed(args.seed)
 
     # Load the dataset
-    loader = LOADERS[args.dataset]
-    dataset = loader(
+    loader_fn = LOADERS[args.dataset]
+    dataset = loader_fn(
         split_proportion=args.split_proportion,
         split_shuffle=args.split_shuffle,
         split_seed=args.seed,

@@ -6,7 +6,16 @@ import random
 import numpy as np
 import torch
 
-from experiments.constants import GP_TRAIN_SAVE_DIR, GP_TRAIN_SAVE_FILE_NAME
+# from rlaopt.preconditioners import IdentityConfig, NystromConfig
+# from rlaopt.solvers import PCGConfig, SAPConfig, SAPAccelConfig
+# from scalable_gp_inference.sdd_config import SDDConfig
+
+from experiments.constants import (
+    GP_TRAIN_SAVE_DIR,
+    GP_TRAIN_SAVE_FILE_NAME,
+    # EXPERIMENT_ATOL,
+    # EXPERIMENT_RTOL,
+)
 
 
 def set_precision(precision):
@@ -75,6 +84,22 @@ def none_or_str(value):
     if value == "None":
         return None
     return value
+
+
+def get_solver_config(
+    opt_type: str,
+    max_passes: int,
+    preconditioner: str,
+    rank: int,
+    regularization: float,
+    damping: str,
+    blocks: int,
+    step_size_unscaled: float,
+):
+    raise NotImplementedError(
+        "This function is not implemented. Please implement "
+        "the function to get the solver configuration."
+    )
 
 
 def get_gp_hparams_save_file_dir(

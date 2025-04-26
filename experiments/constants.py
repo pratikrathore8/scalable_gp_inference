@@ -67,3 +67,7 @@ OPT_NUM_BLOCKS_MAP = {
     "song": 100,
     "houseelec": 100,
 }
+
+# Logging parameters
+LOGGING_USE_WANDB = True
+LOGGING_WANDB_PROJECT_BASE_NAME = "gp_inference"
