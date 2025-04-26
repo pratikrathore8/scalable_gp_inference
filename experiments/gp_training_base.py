@@ -7,6 +7,7 @@ from scalable_gp_inference.hparam_training import train_exact_gp_subsampled
 from experiments.data_processing.load_torch import LOADERS
 from experiments.constants import (
     DATA_NAMES,
+    EXPERIMENT_KERNELS,
     GP_TRAIN_OPT,
     GP_TRAIN_OPT_PARAMS,
     GP_TRAIN_SAVE_FILE_NAME,
@@ -30,19 +31,17 @@ def parse_arguments():
     parser.add_argument(
         "--kernel_type",
         type=str,
-        choices=["rbf", "matern12", "matern32", "matern52"],
+        choices=EXPERIMENT_KERNELS,
         help="The kernel type to use for the GP",
     )
     parser.add_argument(
         "--seed",
         type=int,
-        default=0,
         help="The random seed to use for training",
     )
     parser.add_argument(
         "--device",
         type=device_type,
-        default="cpu",
         help="Device to use for training: 'cpu' or GPU device ID (non-neg. integer)",
     )
     parser.add_argument(

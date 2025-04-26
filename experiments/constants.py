@@ -30,3 +30,40 @@ EXPERIMENT_DATA_KERNEL_MAP = {
     "houseelec": "matern32",
 }
 EXPERIMENT_SEEDS = [0, 1, 2, 3, 4]
+EXPERIMENT_KERNELS = [
+    "rbf",
+    "matern12",
+    "matern32",
+    "matern52",
+]
+
+# Optimizer parameters for GP inference
+OPT_ATOL = 1e-12  # So small that nothing terminates early
+OPT_RTOL = 1e-12  # So small that nothing terminates early
+OPT_RANK = 100
+OPT_DAMPING = "adaptive"
+OPT_SAP_PRECONDITIONERS = ["nystrom", "identity"]
+OPT_PCG_PRECONDITIONERS = ["nystrom"]
+OPT_SDD_MOMENTUM = 0.9
+OPT_SDD_STEP_SIZES_UNSCALED = [1, 10, 100]
+OPT_SDD_THETA_UNSCALED = 100
+OPT_MAX_PASSES_MAP = {
+    "acsincome": 20,
+    "yolanda": 50,
+    "malonaldehyde": 50,
+    "benzene": 50,
+    "taxi": 2,
+    "3droad": 50,
+    "song": 50,
+    "houseelec": 20,
+}
+OPT_NUM_BLOCKS_MAP = {
+    "acsincome": 100,
+    "yolanda": 100,
+    "malonaldehyde": 100,
+    "benzene": 100,
+    "taxi": 2000,
+    "3droad": 100,
+    "song": 100,
+    "houseelec": 100,
+}
