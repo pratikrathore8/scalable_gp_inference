@@ -1,11 +1,12 @@
 import argparse
 import os
+import pickle
 import random
 
 import numpy as np
 import torch
 
-from experiments.constants import GP_TRAIN_SAVE_DIR
+from experiments.constants import GP_TRAIN_SAVE_DIR, GP_TRAIN_SAVE_FILE_NAME
 
 
 def set_precision(precision):
@@ -60,6 +61,16 @@ def device_type(value):
         )
 
 
+def dtype_type(value):
+    """Custom type function for argparse to validate and format dtype argument"""
+    if value.lower() == "float32":
+        return torch.float32
+    elif value.lower() == "float64":
+        return torch.float64
+    else:
+        raise argparse.ArgumentTypeError("Data type must be 'float32' or 'float64'")
+
+
 def get_gp_hparams_save_file_dir(
     dataset_name: str,
     kernel_type: str,
@@ -83,3 +94,29 @@ def get_gp_hparams_save_file_dir(
         kernel_type,
         f"seed_{seed}",
     )
+
+
+def get_saved_gp_hparams(
+    dataset_name: str,
+    kernel_type: str,
+    seed: int,
+):
+    """
+    Load saved GP hyperparameters from a file.
+
+    Args:
+        dataset_name (str): The name of the dataset.
+        kernel_type (str): The type of kernel used.
+        seed (int): The random seed used for training.
+
+    Returns:
+        dict: The loaded GP hyperparameters.
+    """
+    save_dir = get_gp_hparams_save_file_dir(dataset_name, kernel_type, seed)
+    save_file = os.path.join(save_dir, GP_TRAIN_SAVE_FILE_NAME)
+    if not os.path.exists(save_file):
+        raise FileNotFoundError(f"GP hyperparameters file not found: {save_file}")
+    with open(save_file, "rb") as f:
+        gp_hparams = pickle.load(f)
+
+    return gp_hparams

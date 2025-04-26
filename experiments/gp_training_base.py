@@ -7,18 +7,16 @@ from scalable_gp_inference.hparam_training import train_exact_gp_subsampled
 from experiments.data_processing.load_torch import LOADERS
 from experiments.constants import (
     DATA_NAMES,
-    DATA_SPLIT_PROPORTION,
-    DATA_SPLIT_SHUFFLE,
-    DATA_STANDARDIZE,
-    GP_TRAIN_DTYPE,
-    GP_TRAIN_MAX_ITERS,
-    GP_TRAIN_NUM_TRIALS,
     GP_TRAIN_OPT,
     GP_TRAIN_OPT_PARAMS,
-    GP_TRAIN_SUBSAMPLE_SIZE,
     GP_TRAIN_SAVE_FILE_NAME,
 )
-from experiments.utils import device_type, set_random_seed, get_gp_hparams_save_file_dir
+from experiments.utils import (
+    device_type,
+    dtype_type,
+    set_random_seed,
+    get_gp_hparams_save_file_dir,
+)
 
 
 def parse_arguments():
@@ -47,6 +45,41 @@ def parse_arguments():
         default="cpu",
         help="Device to use for training: 'cpu' or GPU device ID (non-neg. integer)",
     )
+    parser.add_argument(
+        "--split_proportion",
+        type=float,
+        help="Proportion of data to use for testing",
+    )
+    parser.add_argument(
+        "--split_shuffle",
+        type=bool,
+        help="Whether to shuffle the data before splitting",
+    )
+    parser.add_argument(
+        "--standardize",
+        type=bool,
+        help="Whether to standardize the data",
+    )
+    parser.add_argument(
+        "--dtype",
+        type=dtype_type,
+        help="Data type to use for training (e.g., 'float32', 'float64')",
+    )
+    parser.add_argument(
+        "--subsample_size",
+        type=int,
+        help="Subsample size for training",
+    )
+    parser.add_argument(
+        "--num_trials",
+        type=int,
+        help="Number of trials for training",
+    )
+    parser.add_argument(
+        "--max_iters",
+        type=int,
+        help="Maximum number of iterations for training",
+    )
     return parser.parse_args()
 
 
@@ -59,11 +92,11 @@ def main():
     # Load the dataset
     loader = LOADERS[args.dataset]
     dataset = loader(
-        split_proportion=DATA_SPLIT_PROPORTION,
-        split_shuffle=DATA_SPLIT_SHUFFLE,
+        split_proportion=args.split_proportion,
+        split_shuffle=args.split_shuffle,
         split_seed=args.seed,
-        standardize=DATA_STANDARDIZE,
-        dtype=GP_TRAIN_DTYPE,
+        standardize=args.standardize,
+        dtype=args.dtype,
         device=args.device,
     )
 
@@ -74,9 +107,9 @@ def main():
         kernel_type=args.kernel_type,
         opt_class=GP_TRAIN_OPT,
         opt_hparams=GP_TRAIN_OPT_PARAMS,
-        training_iters=GP_TRAIN_MAX_ITERS,
-        subsample_size=GP_TRAIN_SUBSAMPLE_SIZE,
-        num_trials=GP_TRAIN_NUM_TRIALS,
+        training_iters=args.max_iters,
+        subsample_size=args.subsample_size,
+        num_trials=args.num_trials,
     )
 
     # Save the trained GP hyperparameters

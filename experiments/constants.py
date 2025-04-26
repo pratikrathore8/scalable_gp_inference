@@ -1,4 +1,3 @@
-import torch
 from torch.optim import Adam
 
 from experiments.data_processing.load_torch import LOADERS
@@ -10,7 +9,7 @@ DATA_SPLIT_SHUFFLE = True
 DATA_STANDARDIZE = True
 
 # For GP training
-GP_TRAIN_DTYPE = torch.float64
+GP_TRAIN_DTYPE = "float64"
 GP_TRAIN_MAX_ITERS = 100
 GP_TRAIN_NUM_TRIALS = 10
 GP_TRAIN_OPT = Adam
