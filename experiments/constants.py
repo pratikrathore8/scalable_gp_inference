@@ -37,6 +37,22 @@ EXPERIMENT_KERNELS = [
     "matern52",
 ]
 
+# Parameters for GP inference
+GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
+    "acsincome": 64,
+    "yolanda": 64,
+    "malonaldehyde": 64,
+    "benzene": 64,
+    # If we are using 2048 random features, we will run out memory,
+    # so we only focus on the posterior mean for taxi
+    "taxi": 0,
+    "3droad": 64,
+    "song": 64,
+    "houseelec": 64,
+}
+GP_INFERENCE_NUM_RANDOM_FEATURES = 2048
+GP_INFERENCE_USE_FULL_KERNEL = False
+
 # Optimizer parameters for GP inference
 OPT_ATOL = 1e-12  # So small that nothing terminates early
 OPT_RTOL = 1e-12  # So small that nothing terminates early

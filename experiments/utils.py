@@ -40,13 +40,8 @@ def load_dataset(args, device: torch.device):
     return dataset
 
 
-def set_precision(precision):
-    if precision == "float32":
-        torch.set_default_dtype(torch.float32)
-    elif precision == "float64":
-        torch.set_default_dtype(torch.float64)
-    else:
-        raise ValueError("Precision must be either 'float32' or 'float64'")
+def set_precision(precision: torch.dtype):
+    torch.set_default_dtype(precision)
 
 
 def set_random_seed(seed: int):
