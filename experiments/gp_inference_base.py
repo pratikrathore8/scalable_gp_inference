@@ -1,15 +1,17 @@
 import argparse
-import os  # noqa: F401
-import pickle  # noqa: F401
 
-from scalable_gp_inference.gp_inference import GPInference  # noqa: F401
+# import os
+# import pickle
+
+# from scalable_gp_inference.gp_inference import GPInference
 
 from experiments.constants import DATA_NAMES, EXPERIMENT_KERNELS
 from experiments.utils import (
     device_type,
     dtype_type,
-    # set_random_seed,  # noqa: F401
-    # get_saved_gp_hparams,  # noqa: F401
+    none_or_str,
+    # set_random_seed,
+    # get_saved_gp_hparams,
 )
 
 
@@ -74,7 +76,7 @@ def parse_arguments():
         help="Whether to use the full kernel during inference",
     )
     parser.add_argument(
-        "--eval-freq",
+        "--eval_freq",
         type=int,
         help="Frequency of evaluation during inference",
     )
@@ -83,5 +85,39 @@ def parse_arguments():
         type=bool,
         help="Whether to log results in Weights & Biases",
     )
-    parser.add_argument()
+    parser.add_argument(
+        "--opt_max_passes",
+        type=int,
+        help="Maximum number of passes for the optimizer",
+    )
+    parser.add_argument(
+        "--opt_preconditioner",
+        type=none_or_str,
+        choices=["nystrom", "identity", "None"],
+        help="Preconditioner to use for optimization -- SAP and PCG only",
+    )
+    parser.add_argument(
+        "--opt_rank",
+        type=int,
+        default=None,
+        help="Rank for the preconditioner -- nystrom only",
+    )
+    parser.add_argument(
+        "--opt_damping",
+        type=none_or_str,
+        choices=["adaptive", "non_adaptive", "None"],
+        help="Damping for the preconditioner -- nystrom only",
+    )
+    parser.add_argument(
+        "--opt_blocks",
+        type=int,
+        default=None,
+        help="Number of blocks for the optimizer -- SAP and SDD only",
+    )
+    parser.add_argument(
+        "--opt_step_size_unscaled",
+        type=float,
+        default=None,
+        help="Step size for the optimizer -- SDD only",
+    )
     return parser.parse_args()

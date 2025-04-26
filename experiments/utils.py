@@ -71,6 +71,12 @@ def dtype_type(value):
         raise argparse.ArgumentTypeError("Data type must be 'float32' or 'float64'")
 
 
+def none_or_str(value):
+    if value == "None":
+        return None
+    return value
+
+
 def get_gp_hparams_save_file_dir(
     dataset_name: str,
     kernel_type: str,
