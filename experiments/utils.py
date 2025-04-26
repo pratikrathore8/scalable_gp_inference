@@ -5,7 +5,7 @@ import random
 import numpy as np
 import torch
 
-from .constants import GP_TRAIN_SAVE_DIR
+from experiments.constants import GP_TRAIN_SAVE_DIR
 
 
 def set_precision(precision):

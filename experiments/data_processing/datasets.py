@@ -11,7 +11,7 @@ from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 import torch
 
-from .utils import (
+from experiments.data_processing.utils import (
     _standardize,
     _convert_to_numpy,
     _numpy_to_torch,

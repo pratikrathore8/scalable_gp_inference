@@ -1,4 +1,9 @@
-from .datasets import OpenMLDataset, SGDMLDataset, TaxiDataset, UCIDataset
+from experiments.data_processing.datasets import (
+    OpenMLDataset,
+    SGDMLDataset,
+    TaxiDataset,
+    UCIDataset,
+)
 
 import torch
 

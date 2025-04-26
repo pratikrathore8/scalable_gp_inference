@@ -4,8 +4,8 @@ import os
 
 from scalable_gp_inference.hparam_training import train_exact_gp_subsampled
 
-from data_processing.load_torch import LOADERS
-from .constants import (
+from experiments.data_processing.load_torch import LOADERS
+from experiments.constants import (
     DATA_NAMES,
     DATA_SPLIT_PROPORTION,
     DATA_SPLIT_SHUFFLE,
@@ -18,7 +18,7 @@ from .constants import (
     GP_TRAIN_SUBSAMPLE_SIZE,
     GP_TRAIN_SAVE_FILE_NAME,
 )
-from .utils import device_type, set_random_seed, get_gp_hparams_save_file_dir
+from experiments.utils import device_type, set_random_seed, get_gp_hparams_save_file_dir
 
 
 def parse_arguments():
@@ -90,3 +90,7 @@ def main():
     save_file_path = os.path.join(save_file_dir, GP_TRAIN_SAVE_FILE_NAME)
     with open(save_file_path, "wb") as f:
         pickle.dump(gp_hparams.to("cpu"), f)
+
+
+if __name__ == "__main__":
+    main()
