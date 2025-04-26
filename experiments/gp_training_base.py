@@ -4,7 +4,6 @@ import os
 
 from scalable_gp_inference.hparam_training import train_exact_gp_subsampled
 
-from experiments.data_processing.load_torch import LOADERS
 from experiments.constants import (
     DATA_NAMES,
     EXPERIMENT_KERNELS,
@@ -15,7 +14,9 @@ from experiments.constants import (
 from experiments.utils import (
     device_type,
     dtype_type,
+    load_dataset,
     set_random_seed,
+    set_precision,
     get_gp_hparams_save_file_dir,
 )
 
@@ -88,16 +89,11 @@ def main():
     # Set random seed for reproducibility
     set_random_seed(args.seed)
 
+    # Set precision for training
+    set_precision(args.dtype)
+
     # Load the dataset
-    loader_fn = LOADERS[args.dataset]
-    dataset = loader_fn(
-        split_proportion=args.split_proportion,
-        split_shuffle=args.split_shuffle,
-        split_seed=args.seed,
-        standardize=args.standardize,
-        dtype=args.dtype,
-        device=args.device,
-    )
+    dataset = load_dataset(args, device=args.device)
 
     # Train the GP model
     gp_hparams = train_exact_gp_subsampled(

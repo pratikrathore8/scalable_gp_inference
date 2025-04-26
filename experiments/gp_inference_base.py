@@ -2,7 +2,6 @@ import argparse
 
 from scalable_gp_inference.gp_inference import GPInference
 
-from experiments.data_processing.load_torch import LOADERS
 from experiments.constants import (
     DATA_NAMES,
     EXPERIMENT_KERNELS,
@@ -12,7 +11,9 @@ from experiments.utils import (
     device_type,
     dtype_type,
     none_or_str,
+    load_dataset,
     set_random_seed,
+    set_precision,
     get_solver_config,
     get_saved_gp_hparams,
 )
@@ -138,6 +139,9 @@ def main():
     # Set random seed for reproducibility
     set_random_seed(args.seed)
 
+    # Set precision for training
+    set_precision(args.dtype)
+
     # Load the GP hyperparameters
     gp_hparams = get_saved_gp_hparams(args.dataset, args.kernel_type, args.seed)
     gp_hparams = gp_hparams.to(device=args.devices[0], dtype=args.dtype)
@@ -154,18 +158,8 @@ def main():
         step_size_unscaled=args.opt_step_size_unscaled,
     )
 
-    # Load the dataset
-    # TODO(pratik): make this a utility function to reduce code duplication
-    # with gp_training_base.py
-    loader_fn = LOADERS[args.dataset]
-    dataset = loader_fn(
-        split_proportion=args.split_proportion,
-        split_shuffle=args.split_shuffle,
-        split_seed=args.seed,
-        standardize=args.standardize,
-        dtype=args.dtype,
-        device=args.devices[0],
-    )
+    # Load the dataset for inference
+    dataset = load_dataset(args, device=args.devices[0])
 
     # Get GP inference object
     model = GPInference(

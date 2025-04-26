@@ -10,12 +10,32 @@ import torch
 # from rlaopt.solvers import PCGConfig, SAPConfig, SAPAccelConfig
 # from scalable_gp_inference.sdd_config import SDDConfig
 
+from experiments.data_processing.load_torch import LOADERS
 from experiments.constants import (
     GP_TRAIN_SAVE_DIR,
     GP_TRAIN_SAVE_FILE_NAME,
-    # EXPERIMENT_ATOL,
-    # EXPERIMENT_RTOL,
+    # OPT_ATOL,
+    # OPT_RTOL,
 )
+
+
+def load_dataset(args, device: torch.device):
+    """
+    Load the dataset based on the provided arguments.
+
+    Args:
+        args (argparse.Namespace): The parsed command-line arguments.
+    """
+    load_fn = LOADERS[args.dataset]
+    dataset = load_fn(
+        split_proportion=args.split_proportion,
+        split_shuffle=args.split_shuffle,
+        split_seed=args.seed,
+        standardize=args.standardize,
+        dtype=args.dtype,
+        device=device,
+    )
+    return dataset
 
 
 def set_precision(precision):
