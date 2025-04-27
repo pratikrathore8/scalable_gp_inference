@@ -6,6 +6,7 @@ from experiments.constants import (
     DATA_NAMES,
     EXPERIMENT_KERNELS,
     LOGGING_WANDB_PROJECT_BASE_NAME,
+    OPT_TYPES,
 )
 from experiments.utils import (
     device_type,
@@ -92,7 +93,7 @@ def parse_arguments():
     parser.add_argument(
         "--opt_type",
         type=str,
-        choices=["pcg", "sap", "sdd"],
+        choices=OPT_TYPES,
         help="Type of optimization algorithm to use",
     )
     parser.add_argument(

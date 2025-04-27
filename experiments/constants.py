@@ -30,12 +30,9 @@ EXPERIMENT_DATA_KERNEL_MAP = {
     "houseelec": "matern32",
 }
 EXPERIMENT_SEEDS = [0, 1, 2, 3, 4]
-EXPERIMENT_KERNELS = [
-    "rbf",
-    "matern12",
-    "matern32",
-    "matern52",
-]
+EXPERIMENT_KERNELS = list(
+    set(EXPERIMENT_DATA_KERNEL_MAP.values())
+)  # Unique kernels from the dataset mapping
 
 # Parameters for GP inference
 GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
@@ -51,7 +48,8 @@ GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
     "houseelec": 64,
 }
 GP_INFERENCE_NUM_RANDOM_FEATURES = 2048
-GP_INFERENCE_USE_FULL_KERNEL = True  # Used for all datasets besides taxi
+# Used for all datasets besides acsincome, houseelec, taxi
+GP_INFERENCE_USE_FULL_KERNEL = True
 
 # Optimizer parameters for GP inference
 OPT_TYPES = ["pcg", "sap", "sdd"]
@@ -91,3 +89,8 @@ OPT_NUM_BLOCKS_MAP = {
 # Logging parameters
 LOGGING_USE_WANDB = True
 LOGGING_WANDB_PROJECT_BASE_NAME = "gp_inference"
+LOGGING_EVAL_FREQ_MAP = {
+    "pcg": 1,
+    "sap": 100,
+    "sdd": 100,
+}
