@@ -124,6 +124,8 @@ def get_solver_config(
         )
     elif preconditioner == "identity":
         precond_config = IdentityConfig()
+    elif preconditioner is None:
+        precond_config = None
     else:
         raise ValueError(f"Unknown preconditioner: {preconditioner}")
 
@@ -161,7 +163,7 @@ def get_solver_config(
             momentum=OPT_SDD_MOMENTUM,
             step_size=step_size_unscaled / ntr,
             theta=OPT_SDD_THETA_UNSCALED / max_iters,
-            blk_sz=ntr // blocks,
+            blk_size=ntr // blocks,
             **solver_config_base_kwargs,
         )
 

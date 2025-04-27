@@ -51,7 +51,7 @@ GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
     "houseelec": 64,
 }
 GP_INFERENCE_NUM_RANDOM_FEATURES = 2048
-GP_INFERENCE_USE_FULL_KERNEL = True
+GP_INFERENCE_USE_FULL_KERNEL = True  # Used for all datasets besides taxi
 
 # Optimizer parameters for GP inference
 OPT_TYPES = ["pcg", "sap", "sdd"]
@@ -60,10 +60,13 @@ OPT_RTOL = 1e-12  # So small that nothing terminates early
 OPT_RANK = 100
 OPT_DAMPING = "adaptive"
 OPT_SAP_PRECONDITIONERS = ["nystrom", "identity"]
+OPT_SAP_PRECISIONS = ["float32"]
 OPT_PCG_PRECONDITIONERS = ["nystrom"]
+OPT_PCG_PRECISIONS = ["float32", "float64"]
 OPT_SDD_MOMENTUM = 0.9
 OPT_SDD_STEP_SIZES_UNSCALED = [1, 10, 100]
 OPT_SDD_THETA_UNSCALED = 100
+OPT_SDD_PRECISIONS = ["float32"]
 OPT_MAX_PASSES_MAP = {
     "acsincome": 20,
     "yolanda": 50,
