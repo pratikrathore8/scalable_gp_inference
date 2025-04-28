@@ -11,7 +11,7 @@ from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 import torch
 
-from experiments.data_processing.fingerprint_utils import smiles_to_fingerprint_arr
+from experiments.data_processing.dockstring_utils import smiles_to_fingerprint_arr
 from experiments.data_processing.utils import (
     _standardize,
     _convert_to_numpy,
@@ -149,7 +149,7 @@ class DockstringDataset(_BaseDataset):
     # https://github.com/AustinT/tanimoto-random-features-neurips23/blob/main/trf23/datasets/dockstring.py
     # and https://github.com/cambridge-mlg/sgd-gp/blob/main/scalable_gps/data.py
     target: str | None = None  # Needed for loading only
-    input_dim: int = 1  # Needed for loading only
+    input_dim: int  # Needed for loading only
     binarize: bool = False  # Needed for loading only
     mean_y: float  # Needed for loading only
 

@@ -1,8 +1,14 @@
 from experiments.data_processing.datasets import (
+    DockstringDataset,
     OpenMLDataset,
     SGDMLDataset,
     TaxiDataset,
     UCIDataset,
+)
+from experiments.data.dockstring_params import (
+    DOCKSTRING_INPUT_DIM,
+    DOCKSTRING_BINARIZE,
+    DOCKSTRING_DATASET_HPARAMS,
 )
 
 import torch
@@ -34,6 +40,29 @@ def _load_torch_generic(
         dtype=dtype,
         device=device,
         **load_kwargs,
+    )
+
+
+def _load_torch_dockstring(
+    name: str,
+    standardize: bool,
+    dtype: torch.dtype,
+    device: torch.device,
+    target: str,
+) -> tuple[torch.Tensor]:
+    dataset = DockstringDataset(
+        name=name,
+        data_folder_name=name,
+        target=target,
+        input_dim=DOCKSTRING_INPUT_DIM,
+        binarize=DOCKSTRING_BINARIZE,
+        mean_y=DOCKSTRING_DATASET_HPARAMS[target]["mean"],
+    )
+    return dataset.load_torch(
+        load_path=_LOAD_PATH,
+        standardize=standardize,
+        dtype=dtype,
+        device=device,
     )
 
 
@@ -99,6 +128,81 @@ def _load_torch_uci(
         dtype=dtype,
         device=device,
         **load_kwargs,
+    )
+
+
+def _load_torch_esr2(
+    name: str,
+    standardize: bool,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> tuple[torch.Tensor]:
+    return _load_torch_dockstring(
+        name=name,
+        standardize=standardize,
+        dtype=dtype,
+        device=device,
+        target="ESR2",
+    )
+
+
+def _load_torch_f2(
+    name: str,
+    standardize: bool,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> tuple[torch.Tensor]:
+    return _load_torch_dockstring(
+        name=name,
+        standardize=standardize,
+        dtype=dtype,
+        device=device,
+        target="F2",
+    )
+
+
+def _load_torch_kit(
+    name: str,
+    standardize: bool,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> tuple[torch.Tensor]:
+    return _load_torch_dockstring(
+        name=name,
+        standardize=standardize,
+        dtype=dtype,
+        device=device,
+        target="KIT",
+    )
+
+
+def _load_torch_parp1(
+    name: str,
+    standardize: bool,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> tuple[torch.Tensor]:
+    return _load_torch_dockstring(
+        name=name,
+        standardize=standardize,
+        dtype=dtype,
+        device=device,
+        target="PARP1",
+    )
+
+
+def _load_torch_pgr(
+    name: str,
+    standardize: bool,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> tuple[torch.Tensor]:
+    return _load_torch_dockstring(
+        name=name,
+        standardize=standardize,
+        dtype=dtype,
+        device=device,
+        target="PGR",
     )
 
 
@@ -262,6 +366,11 @@ def load_torch_houseelec(
 
 
 LOADERS = {
+    "ESR2": _load_torch_esr2,
+    "F2": _load_torch_f2,
+    "KIT": _load_torch_kit,
+    "PARP1": _load_torch_parp1,
+    "PGR": _load_torch_pgr,
     "acsincome": load_torch_acsincome,
     "yolanda": load_torch_yolanda,
     "malonaldehyde": load_torch_malonaldehyde,
