@@ -181,7 +181,8 @@ class DockstringDataset(_BaseDataset):
 
     def _load(self, load_path: str):
         # Don't convert to numpy as we usually do
-        return self._raw_load(load_path)
+        joined_load_path = os.path.join(load_path, self.data_folder_name)
+        return self._raw_load(joined_load_path)
 
     def _split_data(self, data: dict[str, pd.DataFrame]):
         Xtr = data["X"][data["splits"]["split"] == "train"]
