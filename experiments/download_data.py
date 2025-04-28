@@ -1,7 +1,17 @@
-from experiments.data_processing.datasets import OpenMLDataset, SGDMLDataset, UCIDataset
+from experiments.data_processing.datasets import (
+    DockstringDataset,
+    OpenMLDataset,
+    SGDMLDataset,
+    UCIDataset,
+)
 
 _SAVE_PATH = "data"
 
+_DOCKSTRING = {
+    "class": DockstringDataset,
+    "class_kwargs": {"name": "dockstring", "data_folder_name": "dockstring"},
+    "download_kwargs": {"save_path": _SAVE_PATH},
+}
 _ACSINCOME = {
     "class": OpenMLDataset,
     "class_kwargs": {"name": "acsincome", "data_folder_name": "acsincome"},
@@ -51,13 +61,14 @@ _HOUSEELEC = {
 }
 
 _DOWNLOAD_CONFIGS = [
-    _ACSINCOME,
-    _YOLANDA,
-    _MALONALDEHYDE,
-    _BENZENE,
-    _3DROAD,
-    _SONG,
-    _HOUSEELEC,
+    _DOCKSTRING,
+    # _ACSINCOME,
+    # _YOLANDA,
+    # _MALONALDEHYDE,
+    # _BENZENE,
+    # _3DROAD,
+    # _SONG,
+    # _HOUSEELEC,
 ]
 
 

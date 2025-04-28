@@ -19,6 +19,10 @@ from experiments.data_processing.utils import (
     _convert_datetime_columns,
 )
 
+DOCKSTRING_DATASET_URL_STEM = "https://figshare.com/ndownloader/files/35948138"
+DOCKSTRING_SPLIT_URL_STEM = "https://figshare.com/ndownloader/files/35948123"
+DOCKSTRING_DATASET_FILE_NAME = "dockstring-dataset.tsv"
+DOCKSTRING_SPLIT_FILE_NAME = "cluster_split.tsv"
 SGDML_URL_STEM = "http://www.quantum-machine.org/gdml/data/npz"
 UCI_URL_STEM = "https://archive.ics.uci.edu/static/public"
 
@@ -136,6 +140,23 @@ class _BaseDataset(ABC):
         # Convert to PyTorch tensors on the specified device
         data_split = self._convert_to_torch(data_split, dtype, device)
         return SplitData(**data_split)
+
+
+@dataclass(kw_only=True, frozen=False)
+class DockstringDataset(_BaseDataset):
+    def _raw_download(self, save_path: str):
+        """Download the Dockstring data and save it to the specified location."""
+        data_url = f"{DOCKSTRING_DATASET_URL_STEM}/{DOCKSTRING_DATASET_FILE_NAME}"
+        split_url = f"{DOCKSTRING_SPLIT_URL_STEM}/{DOCKSTRING_SPLIT_FILE_NAME}"
+        data_response = requests.get(data_url)
+        split_response = requests.get(split_url)
+        with open(os.path.join(save_path, "data.tsv"), "wb") as f:
+            f.write(data_response.content)
+        with open(os.path.join(save_path, "split.tsv"), "wb") as f:
+            f.write(split_response.content)
+
+    def _raw_load(self, load_path: str):
+        pass
 
 
 @dataclass(kw_only=True, frozen=False)
