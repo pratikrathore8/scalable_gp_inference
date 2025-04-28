@@ -28,14 +28,7 @@ from experiments.constants import (
 def _get_precision_extensions(precisions):
     extension_list = []
     for precision in precisions:
-        if precision == "float32":
-            extension_list.append(
-                [
-                    "--dtype",
-                    precision,
-                ]
-            )
-        elif precision == "float64":
+        if precision in ["float32", "float64"]:
             extension_list.append(
                 [
                     "--dtype",
@@ -151,20 +144,45 @@ def _get_base_command(args):
         "--seed",
         str(args.seed),
         "--devices",
-        " ".join(args.devices),
-        "--split_proportion",
-        str(DATA_SPLIT_PROPORTION),
-        "--split_shuffle" if DATA_SPLIT_SHUFFLE else "",
-        "--standardize" if DATA_STANDARDIZE else "",
-        "--num_posterior_samples",
-        str(GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP[args.dataset]),
-        "--num_random_features",
-        str(GP_INFERENCE_NUM_RANDOM_FEATURES),
-        "--use_full_kernel" if _get_use_full_kernel(args.dataset) else "",
-        "--log_in_wandb" if LOGGING_USE_WANDB else "",
-        "--opt_max_passes",
-        str(OPT_MAX_PASSES_MAP[args.dataset]),
     ]
+
+    # Add each device as a separate item
+    cmd.extend(args.devices)
+
+    cmd.extend(
+        [
+            "--split_proportion",
+            str(DATA_SPLIT_PROPORTION),
+        ]
+    )
+
+    # Only add flags if conditions are True
+    if DATA_SPLIT_SHUFFLE:
+        cmd.append("--split_shuffle")
+    if DATA_STANDARDIZE:
+        cmd.append("--standardize")
+
+    cmd.extend(
+        [
+            "--num_posterior_samples",
+            str(GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP[args.dataset]),
+            "--num_random_features",
+            str(GP_INFERENCE_NUM_RANDOM_FEATURES),
+        ]
+    )
+
+    if _get_use_full_kernel(args.dataset):
+        cmd.append("--use_full_kernel")
+    if LOGGING_USE_WANDB:
+        cmd.append("--log_in_wandb")
+
+    cmd.extend(
+        [
+            "--opt_max_passes",
+            str(OPT_MAX_PASSES_MAP[args.dataset]),
+        ]
+    )
+
     return cmd
 
 

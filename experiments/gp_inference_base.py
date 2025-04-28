@@ -186,6 +186,7 @@ def main():
             "ntst": dataset.Xtst.shape[0],
             "p": dataset.Xtr.shape[1],
             "kernel_type": args.kernel_type,
+            "gp_hparams": gp_hparams.to(device="cpu"),
             "seed": args.seed,
             "all_devices": args.devices,
             "max_passes": args.opt_max_passes,
