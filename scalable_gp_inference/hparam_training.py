@@ -59,6 +59,26 @@ class GPHparams:
         if self.noise_variance < 0:
             raise ValueError("noise_variance must be non-negative")
 
+    def to(self, device: torch.device = None, dtype: torch.dtype = None) -> "GPHparams":
+        """Move GPHparams to a specified device and/or convert to a specified dtype."""
+        # If kernel_lengthscale is not a tensor,
+        # then there's nothing to convert, so return self
+        if not isinstance(self.kernel_lengthscale, torch.Tensor):
+            return self
+
+        # Handle tensor conversion
+        lengthscale = self.kernel_lengthscale.to(device=device, dtype=dtype)
+
+        # Only create a new instance if the tensor actually changed
+        if lengthscale is self.kernel_lengthscale:
+            return self
+
+        return GPHparams(
+            signal_variance=self.signal_variance,
+            kernel_lengthscale=lengthscale,
+            noise_variance=self.noise_variance,
+        )
+
     def __add__(self, other: "GPHparams") -> "GPHparams":
         """Add two GPHparams instances, returning a new instance."""
         if not isinstance(other, GPHparams):
@@ -98,6 +118,7 @@ def _train_exact_gp(
     Xtr: torch.Tensor,
     ytr: torch.Tensor,
     kernel_type: str,
+    opt_class: torch.optim.Optimizer,
     opt_hparams: dict,
     training_iters: int,
 ) -> GPHparams:
@@ -124,9 +145,9 @@ def _train_exact_gp(
     model.train()
     likelihood.train()
 
-    # Use Adam optimizer
+    # Initialize optimizer (typically Adam)
     # Includes GaussianLikelihood parameters
-    optimizer = torch.optim.Adam(model.parameters(), **opt_hparams)
+    optimizer = opt_class(model.parameters(), **opt_hparams)
 
     # "Loss" for GPs is the marginal log likelihood
     mll = ExactMarginalLogLikelihood(likelihood, model)
@@ -164,6 +185,7 @@ def train_exact_gp_subsampled(
     Xtr: torch.Tensor,
     ytr: torch.Tensor,
     kernel_type: str,
+    opt_class: torch.optim.Optimizer,
     opt_hparams: dict,
     training_iters: int,
     subsample_size: int,
@@ -184,6 +206,7 @@ def train_exact_gp_subsampled(
                 Xtr_subsampled,
                 ytr_subsampled,
                 kernel_type,
+                opt_class,
                 opt_hparams,
                 training_iters,
             )
@@ -192,6 +215,7 @@ def train_exact_gp_subsampled(
                 Xtr_subsampled,
                 ytr_subsampled,
                 kernel_type,
+                opt_class,
                 opt_hparams,
                 training_iters,
             )

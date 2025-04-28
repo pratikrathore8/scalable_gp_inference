@@ -14,7 +14,14 @@ def _random_features(
 ) -> torch.Tensor:
     B = 2 * torch.pi * torch.rand(num_features, device=X.device, dtype=X.dtype)
     scale_factor = (const_scaling * 2.0 / num_features) ** 0.5
-    return scale_factor * torch.cos(X @ Omega + B)
+
+    # Use in-place operations to reduce memory usage
+    # Equivalent to result = scale_factor * torch.cos(X @ Omega + B)
+    result = X @ Omega
+    result.add_(B)
+    torch.cos(result, out=result)
+    result.mul_(scale_factor)
+    return result
 
 
 def _rbf_random_features(
