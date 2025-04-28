@@ -8,6 +8,12 @@ from .random_features import get_random_features
 from .utils import _get_kernel_linop, _safe_unsqueeze
 
 
+# def print_memory_usage(label=""):
+#     allocated = torch.cuda.memory_allocated() / 1e9
+#     reserved = torch.cuda.memory_reserved() / 1e9
+#     print(f"{label} - Allocated: {allocated:.2f} GB, Reserved: {reserved:.2f} GB")
+
+
 class GPInference:
     def __init__(
         self,
@@ -58,7 +64,8 @@ class GPInference:
                 dtype=self.Xtst.dtype,
             )
 
-            # TODO(pratik): eventually vectorize over the posterior samples
+            # TODO(pratik): vectorize over posterior samples
+            # this could lead to higher memory usage though
             for i in range(self.num_posterior_samples):
                 X_featurized = get_random_features(
                     X,
@@ -74,6 +81,11 @@ class GPInference:
                     self.Xtr.shape[0], device=self.Xtr.device, dtype=self.Xtr.dtype
                 )
                 Xtst_prior_samples[:, i] = prior_samples[self.Xtr.shape[0] :]
+
+                # Free up memory
+                del X_featurized, prior_samples, w
+                torch.cuda.empty_cache()
+
             return Xtr_prior_samples, Xtst_prior_samples
         return (None,) * 2
 
