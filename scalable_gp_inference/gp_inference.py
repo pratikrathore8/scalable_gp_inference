@@ -4,7 +4,7 @@ import torch
 
 from .hparam_training import GPHparams
 from .kernel_linsys import KernelLinSys
-from .random_features import get_random_features
+from .random_features import RFConfig, get_random_features
 from .utils import _get_kernel_linop, _safe_unsqueeze
 
 
@@ -24,7 +24,7 @@ class GPInference:
         kernel_type: str,
         kernel_hparams: GPHparams,
         num_posterior_samples: int = 0,
-        num_random_features: int = 0,
+        rf_config: RFConfig = RFConfig(num_features=0),
         distributed: bool = False,
         devices: set[torch.device] | None = None,
     ):
@@ -40,7 +40,7 @@ class GPInference:
         )
         self.noise_variance = kernel_hparams.noise_variance
         self.num_posterior_samples = num_posterior_samples
-        self.num_random_features = num_random_features
+        self.rf_config = rf_config
         self.distributed = distributed
         self.devices = devices
         (
@@ -49,7 +49,7 @@ class GPInference:
         ) = self._get_approx_prior_samples()
 
     def _get_approx_prior_samples(self):
-        if self.num_posterior_samples > 0 and self.num_random_features > 0:
+        if self.num_posterior_samples > 0 and self.rf_config.num_features > 0:
             X = torch.cat((self.Xtr, self.Xtst), dim=0)
             Xtr_prior_samples = torch.zeros(
                 self.Xtr.shape[0],
@@ -65,11 +65,11 @@ class GPInference:
             )
 
             # TODO(pratik): vectorize over posterior samples
-            # this could lead to higher memory usage though
+            # However, this could lead to higher memory usage
             for i in range(self.num_posterior_samples):
                 X_featurized = get_random_features(
                     X,
-                    num_features=self.num_random_features,
+                    rf_config=self.rf_config,
                     kernel_config=self.kernel_config,
                     kernel_type=self.kernel_type,
                 )
