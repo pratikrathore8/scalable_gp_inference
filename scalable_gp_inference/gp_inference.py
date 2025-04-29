@@ -5,7 +5,7 @@ import torch
 from .hparam_training import GPHparams
 from .kernel_linsys import KernelLinSys
 from .random_features import RFConfig, get_random_features
-from .utils import _get_kernel_linop, _safe_unsqueeze
+from .utils import _get_kernel_linop, _safe_unsqueeze, _get_r2
 
 
 # def print_memory_usage(label=""):
@@ -141,19 +141,31 @@ class GPInference:
     def _callback_fn(self, W: torch.Tensor, linsys: KernelLinSys, tst_kernel_linop):
         metrics_dict = {}
 
-        # Compute train and test RMSE
+        # Compute train and test RMSE and R^2
         if linsys.use_full_kernel:
+            train_mean = linsys.A @ W[:, 0]
             train_rmse = torch.sqrt(
-                1 / self.ytr.shape[0] * torch.sum((self.ytr - linsys.A @ W[:, 0]) ** 2)
+                1 / self.ytr.shape[0] * torch.sum((self.ytr - train_mean) ** 2)
             )
-            metrics_dict.update({"train_rmse": train_rmse.cpu().item()})
+            train_r2 = _get_r2(self.ytr, train_mean)
+            metrics_dict.update(
+                {
+                    "train_rmse": train_rmse.cpu().item(),
+                    "train_r2": train_r2.cpu().item(),
+                }
+            )
 
         test_mean = tst_kernel_linop @ W[:, 0]
         test_rmse = torch.sqrt(
             1 / self.ytst.shape[0] * torch.sum((self.ytst - test_mean) ** 2)
         )
+        test_r2 = _get_r2(self.ytst, test_mean)
         metrics_dict.update(
-            {"test_rmse": test_rmse.cpu().item(), "test_mean": test_mean.cpu().numpy()}
+            {
+                "test_rmse": test_rmse.cpu().item(),
+                "test_r2": test_r2.cpu().item(),
+                "test_mean": test_mean.cpu().numpy(),
+            }
         )
 
         # Compute variances and negative log likelihood using posterior samples

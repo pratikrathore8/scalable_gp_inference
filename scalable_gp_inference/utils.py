@@ -69,3 +69,17 @@ def _safe_unsqueeze(tensor: torch.Tensor) -> torch.Tensor:
     if tensor.ndim == 1:
         return tensor.unsqueeze(-1)
     return tensor
+
+
+def _get_r2(X: torch.Tensor, y: torch.Tensor):
+    # Fit a linear model
+    X = _safe_unsqueeze(X)
+    y = _safe_unsqueeze(y)
+    X = torch.cat((torch.ones(X.shape[0], 1, device=X.device), X), dim=1)
+    residuals = torch.linalg.lstsq(X, y).residuals
+
+    mu_y = torch.mean(y, dim=0)
+    ss_total = torch.sum((y - mu_y) ** 2, dim=0)
+    ss_residuals = torch.sum(residuals, dim=0)
+    r_squared = 1 - ss_residuals / ss_total
+    return r_squared

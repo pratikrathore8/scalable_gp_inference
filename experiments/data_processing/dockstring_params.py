@@ -46,7 +46,7 @@ def dockstring_hparams_to_gphparams(dataset: str) -> GPHparams:
     hparams = DOCKSTRING_DATASET_HPARAMS[dataset]
     return GPHparams(
         signal_variance=hparams["signal_scale"],
-        # NOTE(pratik): this is a placeholder value to avoid errors in the __post_init__
+        # NOTE(pratik): 1.0 is a placeholder value to avoid errors in the __post_init__
         kernel_lengthscale=1.0,
         noise_variance=hparams["noise_scale"] ** 2,
     )
