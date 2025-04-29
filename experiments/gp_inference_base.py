@@ -166,7 +166,9 @@ def main():
     )
 
     # Get random features configuration
-    rf_config = get_rf_config(args.kernel_type, args.num_random_features)
+    rf_config = get_rf_config(
+        kernel_type=args.kernel_type, num_random_features=args.num_random_features
+    )
 
     # Get GP inference object
     model = GPInference(

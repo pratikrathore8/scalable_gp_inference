@@ -35,14 +35,21 @@ def load_dataset(args, device: torch.device):
         args (argparse.Namespace): The parsed command-line arguments.
     """
     load_fn = LOADERS[args.dataset]
-    dataset = load_fn(
-        split_proportion=args.split_proportion,
-        split_shuffle=args.split_shuffle,
-        split_seed=args.seed,
-        standardize=args.standardize,
-        dtype=args.dtype,
-        device=device,
-    )
+    if args.dataset in DOCKSTRING_DATASET_HPARAMS:
+        dataset = load_fn(
+            standardize=args.standardize,
+            dtype=args.dtype,
+            device=device,
+        )
+    else:
+        dataset = load_fn(
+            split_proportion=args.split_proportion,
+            split_shuffle=args.split_shuffle,
+            split_seed=args.seed,
+            standardize=args.standardize,
+            dtype=args.dtype,
+            device=device,
+        )
     return dataset
 
 
