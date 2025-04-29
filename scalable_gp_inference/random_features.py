@@ -2,6 +2,8 @@ from rlaopt.kernels import KernelConfig
 import torch
 from torch.distributions import Chi2
 
+from .tanimoto_kernel import TanimotoKernelConfig
+
 
 def _get_safe_lengthscale(lengthscale: float | torch.Tensor) -> torch.Tensor:
     if isinstance(lengthscale, torch.Tensor):
@@ -58,6 +60,68 @@ def _matern_random_features(
     u = Chi2(df).sample(sample_shape=(num_features,)).squeeze(-1)
     Omega = torch.sqrt(df) * Y / torch.sqrt(u)
     return _random_features(X, num_features, kernel_config.const_scaling, Omega)
+
+
+def _tanimoto_random_features(
+    X: torch.Tensor,
+    num_features: int,
+    kernel_config: TanimotoKernelConfig,
+    modulo_value: int,
+) -> torch.Tensor:
+    """
+    Compute random features for Tanimoto kernel approximation
+    with vectorized operations.
+
+    Args:
+        x: Input tensor of shape (batch_size, D)
+        num_features: Number of random features to generate
+        modulo_value: Modulo value for feature hashing
+
+    Returns:
+        Random features tensor of shape (batch_size, n_features)
+    """
+    batch_size, D = X.shape
+    M = num_features
+    device = X.device
+
+    # Generate random parameters
+    r = -torch.log(torch.rand(M, D, device=device)) - torch.log(
+        torch.rand(M, D, device=device)
+    )
+    c = -torch.log(torch.rand(M, D, device=device)) - torch.log(
+        torch.rand(M, D, device=device)
+    )
+    xi = (
+        torch.randint(0, 2, (M, D, modulo_value), device=device) * 2 - 1
+    )  # Rademacher distribution
+    beta = torch.rand(M, D, device=device)
+
+    # Process each feature independently for better memory management
+    features = torch.zeros(batch_size, M, device=device)
+
+    for m in range(M):
+        # Compute log-space transformation for all samples
+        t = torch.floor(
+            torch.log(X) / r[m].unsqueeze(0) + beta[m].unsqueeze(0)
+        )  # (batch_size, D)
+        ln_y = r[m].unsqueeze(0) * (t - beta[m].unsqueeze(0))  # (batch_size, D)
+        ln_a = (
+            torch.log(c[m].unsqueeze(0)) - ln_y - r[m].unsqueeze(0)
+        )  # (batch_size, D)
+
+        # Find argmin for each sample
+        a_argmin = torch.argmin(ln_a, dim=1)  # (batch_size,)
+
+        # Get corresponding t values
+        batch_indices = torch.arange(batch_size, device=device)
+        t_selected = t[batch_indices, a_argmin].long() % modulo_value  # (batch_size,)
+
+        # Select features from xi
+        features[:, m] = xi[m, a_argmin, t_selected]
+
+    scale_factor = (kernel_config.const_scaling / M) ** 0.5
+
+    return scale_factor * features
 
 
 def get_random_features(
