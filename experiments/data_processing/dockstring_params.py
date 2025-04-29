@@ -1,4 +1,7 @@
-# Taken from
+from scalable_gp_inference.hparam_training import GPHparams
+
+
+# Parameters are taken from
 # https://github.com/cambridge-mlg/sgd-gp/blob/main/scalable_gps/configs/default.py
 
 DOCKSTRING_INPUT_DIM = 1024
@@ -31,3 +34,19 @@ DOCKSTRING_DATASET_HPARAMS = {
         "signal_scale": 0.63,
     },
 }
+
+
+def dockstring_hparams_to_gphparams(dataset: str) -> GPHparams:
+    """
+    Convert the dataset-specific hyperparameters to GPHparams.
+    """
+    if dataset not in DOCKSTRING_DATASET_HPARAMS:
+        raise ValueError(f"Dataset {dataset} not found in hyperparameters.")
+
+    hparams = DOCKSTRING_DATASET_HPARAMS[dataset]
+    return GPHparams(
+        signal_variance=hparams["signal_scale"],
+        # NOTE(pratik): this is a placeholder value to avoid errors in the __post_init__
+        kernel_lengthscale=1.0,
+        noise_variance=hparams["noise_scale"] ** 2,
+    )

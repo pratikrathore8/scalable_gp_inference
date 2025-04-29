@@ -48,6 +48,7 @@ GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
     "houseelec": 64,
 }
 GP_INFERENCE_NUM_RANDOM_FEATURES = 2048
+GP_INFERENCE_TANIMOTO_MODULO_VALUE = 8
 # Used for all datasets besides acsincome, houseelec, taxi
 GP_INFERENCE_USE_FULL_KERNEL = True
 
