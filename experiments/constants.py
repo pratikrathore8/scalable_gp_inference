@@ -20,6 +20,11 @@ GP_TRAIN_SUBSAMPLE_SIZE = 10000
 
 # Experiment parameters
 EXPERIMENT_DATA_KERNEL_MAP = {
+    "ESR2": "tanimoto",
+    "F2": "tanimoto",
+    "KIT": "tanimoto",
+    "PARP1": "tanimoto",
+    "PGR": "tanimoto",
     "acsincome": "rbf",
     "yolanda": "rbf",
     "malonaldehyde": "matern52",
@@ -36,6 +41,11 @@ EXPERIMENT_KERNELS = list(
 
 # Parameters for GP inference
 GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
+    "ESR2": 0,
+    "F2": 0,
+    "KIT": 0,
+    "PARP1": 0,
+    "PGR": 0,
     "acsincome": 64,
     "yolanda": 64,
     "malonaldehyde": 64,
@@ -48,13 +58,29 @@ GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
     "houseelec": 64,
 }
 GP_INFERENCE_NUM_RANDOM_FEATURES = 2048
-# Used for all datasets besides acsincome, houseelec, taxi
-GP_INFERENCE_USE_FULL_KERNEL = True
+GP_INFERENCE_TANIMOTO_MODULO_VALUE = 8
+# Don't use full kernel for residual computation for datasets
+# with large number of samples or large number of features
+GP_INFERENCE_USE_FULL_KERNEL_MAP = {
+    "ESR2": False,
+    "F2": False,
+    "KIT": False,
+    "PARP1": False,
+    "PGR": False,
+    "acsincome": False,
+    "yolanda": True,
+    "malonaldehyde": True,
+    "benzene": True,
+    "taxi": False,
+    "3droad": True,
+    "song": True,
+    "houseelec": False,
+}
 
 # Optimizer parameters for GP inference
-OPT_TYPES = ["pcg", "sap", "sdd"]
-OPT_ATOL = 1e-12  # So small that nothing terminates early
-OPT_RTOL = 1e-12  # So small that nothing terminates early
+OPT_TYPES = ["sap", "sdd", "pcg"]
+OPT_ATOL = 1e-16  # So small that nothing terminates early
+OPT_RTOL = 1e-16  # So small that nothing terminates early
 OPT_RANK = 100
 OPT_DAMPING = "adaptive"
 OPT_SAP_PRECONDITIONERS = ["nystrom", "identity"]
@@ -66,6 +92,11 @@ OPT_SDD_STEP_SIZES_UNSCALED = [1, 10, 100]
 OPT_SDD_THETA_UNSCALED = 100
 OPT_SDD_PRECISIONS = ["float32"]
 OPT_MAX_PASSES_MAP = {
+    "ESR2": 50,
+    "F2": 50,
+    "KIT": 50,
+    "PARP1": 50,
+    "PGR": 50,
     "acsincome": 20,
     "yolanda": 50,
     "malonaldehyde": 50,
@@ -76,6 +107,11 @@ OPT_MAX_PASSES_MAP = {
     "houseelec": 20,
 }
 OPT_NUM_BLOCKS_MAP = {
+    "ESR2": 100,
+    "F2": 100,
+    "KIT": 100,
+    "PARP1": 100,
+    "PGR": 100,
     "acsincome": 100,
     "yolanda": 100,
     "malonaldehyde": 100,

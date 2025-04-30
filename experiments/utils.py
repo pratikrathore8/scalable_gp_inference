@@ -8,9 +8,14 @@ import torch
 
 from rlaopt.preconditioners import IdentityConfig, NystromConfig
 from rlaopt.solvers import PCGConfig, SAPConfig, SAPAccelConfig
+from scalable_gp_inference.random_features import RFConfig, TanimotoRFConfig
 from scalable_gp_inference.sdd_config import SDDConfig
 
 from experiments.data_processing.load_torch import LOADERS
+from experiments.data_processing.dockstring_params import (
+    DOCKSTRING_DATASET_HPARAMS,
+    dockstring_hparams_to_gphparams,
+)
 from experiments.constants import (
     GP_TRAIN_SAVE_DIR,
     GP_TRAIN_SAVE_FILE_NAME,
@@ -18,6 +23,7 @@ from experiments.constants import (
     OPT_RTOL,
     OPT_SDD_MOMENTUM,
     OPT_SDD_THETA_UNSCALED,
+    GP_INFERENCE_TANIMOTO_MODULO_VALUE,
 )
 
 
@@ -29,14 +35,21 @@ def load_dataset(args, device: torch.device):
         args (argparse.Namespace): The parsed command-line arguments.
     """
     load_fn = LOADERS[args.dataset]
-    dataset = load_fn(
-        split_proportion=args.split_proportion,
-        split_shuffle=args.split_shuffle,
-        split_seed=args.seed,
-        standardize=args.standardize,
-        dtype=args.dtype,
-        device=device,
-    )
+    if args.dataset in DOCKSTRING_DATASET_HPARAMS:
+        dataset = load_fn(
+            standardize=args.standardize,
+            dtype=args.dtype,
+            device=device,
+        )
+    else:
+        dataset = load_fn(
+            split_proportion=args.split_proportion,
+            split_shuffle=args.split_shuffle,
+            split_seed=args.seed,
+            standardize=args.standardize,
+            dtype=args.dtype,
+            device=device,
+        )
     return dataset
 
 
@@ -170,7 +183,7 @@ def get_solver_config(
     return solver_config
 
 
-def get_gp_hparams_save_file_dir(
+def _get_gp_hparams_save_file_dir(
     dataset_name: str,
     kernel_type: str,
     seed: int,
@@ -195,7 +208,7 @@ def get_gp_hparams_save_file_dir(
     )
 
 
-def get_saved_gp_hparams(
+def _get_saved_gp_hparams(
     dataset_name: str,
     kernel_type: str,
     seed: int,
@@ -211,7 +224,7 @@ def get_saved_gp_hparams(
     Returns:
         dict: The loaded GP hyperparameters.
     """
-    save_dir = get_gp_hparams_save_file_dir(dataset_name, kernel_type, seed)
+    save_dir = _get_gp_hparams_save_file_dir(dataset_name, kernel_type, seed)
     save_file = os.path.join(save_dir, GP_TRAIN_SAVE_FILE_NAME)
     if not os.path.exists(save_file):
         raise FileNotFoundError(f"GP hyperparameters file not found: {save_file}")
@@ -219,3 +232,45 @@ def get_saved_gp_hparams(
         gp_hparams = pickle.load(f)
 
     return gp_hparams
+
+
+def get_gp_hparams(
+    dataset_name: str,
+    kernel_type: str,
+    seed: int,
+):
+    if dataset_name in DOCKSTRING_DATASET_HPARAMS:
+        return dockstring_hparams_to_gphparams(dataset_name)
+    else:
+        # Load the saved GP hyperparameters
+        gp_hparams = _get_saved_gp_hparams(
+            dataset_name,
+            kernel_type,
+            seed,
+        )
+        return gp_hparams
+
+
+def get_rf_config(kernel_type: str, num_random_features: int):
+    """
+    Get the random features configuration based on the kernel type and number of
+    random features.
+
+    Args:
+        kernel_type (str): The type of kernel used.
+        num_random_features (int): The number of random features to use.
+
+    Returns:
+        RFConfig: The random features configuration.
+    """
+    if kernel_type == "tanimoto":
+        return TanimotoRFConfig(
+            num_features=num_random_features,
+            modulo_value=GP_INFERENCE_TANIMOTO_MODULO_VALUE,
+        )
+    elif kernel_type in ["rbf", "matern12", "matern32", "matern52"]:
+        return RFConfig(
+            num_features=num_random_features,
+        )
+    else:
+        raise ValueError(f"Unknown kernel type: {kernel_type}")
