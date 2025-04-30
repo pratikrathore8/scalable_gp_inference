@@ -8,7 +8,7 @@ from experiments.constants import (
     EXPERIMENT_DATA_KERNEL_MAP,
     GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP,
     GP_INFERENCE_NUM_RANDOM_FEATURES,
-    GP_INFERENCE_USE_FULL_KERNEL,
+    GP_INFERENCE_USE_FULL_KERNEL_MAP,
     OPT_TYPES,
     OPT_RANK,
     OPT_DAMPING,
@@ -126,13 +126,6 @@ def _get_sdd_extensions(dataset):
     return extensions
 
 
-def _get_use_full_kernel(dataset):
-    if dataset in ["acsincome", "houseelec", "taxi"]:
-        return False
-    else:
-        return GP_INFERENCE_USE_FULL_KERNEL
-
-
 def _get_base_command(args):
     cmd = [
         "python",
@@ -171,7 +164,7 @@ def _get_base_command(args):
         ]
     )
 
-    if _get_use_full_kernel(args.dataset):
+    if GP_INFERENCE_USE_FULL_KERNEL_MAP[args.dataset]:
         cmd.append("--use_full_kernel")
     if LOGGING_USE_WANDB:
         cmd.append("--log_in_wandb")

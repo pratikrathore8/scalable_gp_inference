@@ -11,6 +11,7 @@ from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 import torch
 
+from experiments.data_processing.dockstring_utils import smiles_to_fingerprint_arr
 from experiments.data_processing.utils import (
     _standardize,
     _convert_to_numpy,
@@ -19,6 +20,10 @@ from experiments.data_processing.utils import (
     _convert_datetime_columns,
 )
 
+DOCKSTRING_DATASET_URL_STEM = "https://figshare.com/ndownloader/files/35948138"
+DOCKSTRING_SPLIT_URL_STEM = "https://figshare.com/ndownloader/files/35948123"
+DOCKSTRING_DATASET_FILE_NAME = "dockstring-dataset.tsv"
+DOCKSTRING_SPLIT_FILE_NAME = "cluster_split.tsv"
 SGDML_URL_STEM = "http://www.quantum-machine.org/gdml/data/npz"
 UCI_URL_STEM = "https://archive.ics.uci.edu/static/public"
 
@@ -136,6 +141,81 @@ class _BaseDataset(ABC):
         # Convert to PyTorch tensors on the specified device
         data_split = self._convert_to_torch(data_split, dtype, device)
         return SplitData(**data_split)
+
+
+@dataclass(kw_only=True, frozen=False)
+class DockstringDataset(_BaseDataset):
+    # Implementation is based on
+    # https://github.com/AustinT/tanimoto-random-features-neurips23/blob/main/trf23/datasets/dockstring.py
+    # and https://github.com/cambridge-mlg/sgd-gp/blob/main/scalable_gps/data.py
+    target: str | None = None  # Needed for loading only
+    input_dim: int  # Needed for loading only
+    binarize: bool = False  # Needed for loading only
+    mean_y: float  # Needed for loading only
+
+    def _raw_download(self, save_path: str):
+        """Download the Dockstring data and save it to the specified location."""
+        data_url = f"{DOCKSTRING_DATASET_URL_STEM}/{DOCKSTRING_DATASET_FILE_NAME}"
+        split_url = f"{DOCKSTRING_SPLIT_URL_STEM}/{DOCKSTRING_SPLIT_FILE_NAME}"
+        data_response = requests.get(data_url)
+        split_response = requests.get(split_url)
+        with open(os.path.join(save_path, "data.tsv"), "wb") as f:
+            f.write(data_response.content)
+        with open(os.path.join(save_path, "split.tsv"), "wb") as f:
+            f.write(split_response.content)
+
+    def _raw_load(self, load_path: str):
+        X = pd.read_csv(
+            os.path.join(load_path, "data.tsv"),
+            sep="\t",
+        ).set_index("inchikey")
+        splits = (
+            pd.read_csv(
+                os.path.join(load_path, "split.tsv"),
+                sep="\t",
+            )
+            .set_index("inchikey")
+            .loc[X.index]
+        )
+        return {"X": X, "splits": splits}
+
+    def _load(self, load_path: str):
+        # Don't convert to numpy as we usually do
+        joined_load_path = os.path.join(load_path, self.data_folder_name)
+        return self._raw_load(joined_load_path)
+
+    def _split_data(self, data: dict[str, pd.DataFrame]):
+        Xtr = data["X"][data["splits"]["split"] == "train"]
+        Xtst = data["X"][data["splits"]["split"] == "test"]
+        Xtr = Xtr[["smiles", self.target]].dropna()  # Drop rows with NaN values
+        Xtst = Xtst[["smiles", self.target]].dropna()  # Drop rows with NaN values
+
+        # Extract train/test SMILES
+        ytr = _convert_to_numpy(Xtr[self.target])
+        ytst = _convert_to_numpy(Xtst[self.target])
+        Xtr = Xtr.smiles.to_list()
+        Xtst = Xtst.smiles.to_list()
+
+        # Clip targets to max of 5.0
+        ytr = np.minimum(ytr, 5.0)
+        ytst = np.minimum(ytst, 5.0)
+
+        fp_kwargs = dict(
+            use_counts=True, radius=1, nbits=self.input_dim, binarize=self.binarize
+        )
+        Xtr = smiles_to_fingerprint_arr(Xtr, **fp_kwargs).astype(np.float64)
+        Xtst = smiles_to_fingerprint_arr(Xtst, **fp_kwargs).astype(np.float64)
+
+        return {"Xtr": Xtr, "Xtst": Xtst, "ytr": ytr, "ytst": ytst}
+
+    def _standardize_data(
+        self, data: dict[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+    ):
+        # Don't normalize the hashed features for the Dockstring datasets
+        # We use mean_y to standardize the targets
+        data["ytr"] = data["ytr"] - self.mean_y
+        data["ytst"] = data["ytst"] - self.mean_y
+        return data
 
 
 @dataclass(kw_only=True, frozen=False)
