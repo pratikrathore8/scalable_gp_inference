@@ -192,7 +192,7 @@ def main():
             "ntst": dataset.Xtst.shape[0],
             "p": dataset.Xtr.shape[1],
             "kernel_type": args.kernel_type,
-            "gp_hparams": gp_hparams.to(device="cpu"),
+            "gp_hparams": gp_hparams.to_dict(),
             "num_posterior_samples": args.num_posterior_samples,
             "rf_config": rf_config,
             "seed": args.seed,
