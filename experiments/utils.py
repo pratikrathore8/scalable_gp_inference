@@ -265,12 +265,12 @@ def get_rf_config(kernel_type: str, num_random_features: int):
     """
     if kernel_type == "tanimoto":
         return TanimotoRFConfig(
-            num_random_features=num_random_features,
+            num_features=num_random_features,
             modulo_value=GP_INFERENCE_TANIMOTO_MODULO_VALUE,
         )
     elif kernel_type in ["rbf", "matern12", "matern32", "matern52"]:
         return RFConfig(
-            num_random_features=num_random_features,
+            num_features=num_random_features,
         )
     else:
         raise ValueError(f"Unknown kernel type: {kernel_type}")

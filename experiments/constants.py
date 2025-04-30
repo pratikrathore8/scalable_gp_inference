@@ -59,11 +59,26 @@ GP_INFERENCE_NUM_POSTERIOR_SAMPLES_MAP = {
 }
 GP_INFERENCE_NUM_RANDOM_FEATURES = 2048
 GP_INFERENCE_TANIMOTO_MODULO_VALUE = 8
-# Used for all datasets besides acsincome, houseelec, taxi
-GP_INFERENCE_USE_FULL_KERNEL = True
+# Don't use full kernel for residual computation for datasets
+# with large number of samples or large number of features
+GP_INFERENCE_USE_FULL_KERNEL_MAP = {
+    "ESR2": False,
+    "F2": False,
+    "KIT": False,
+    "PARP1": False,
+    "PGR": False,
+    "acsincome": False,
+    "yolanda": True,
+    "malonaldehyde": True,
+    "benzene": True,
+    "taxi": False,
+    "3droad": True,
+    "song": True,
+    "houseelec": False,
+}
 
 # Optimizer parameters for GP inference
-OPT_TYPES = ["pcg", "sap", "sdd"]
+OPT_TYPES = ["sap", "sdd", "pcg"]
 OPT_ATOL = 1e-16  # So small that nothing terminates early
 OPT_RTOL = 1e-16  # So small that nothing terminates early
 OPT_RANK = 100

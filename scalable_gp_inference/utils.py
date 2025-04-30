@@ -16,6 +16,7 @@ import torch
 
 from .sdd_config import SDDConfig
 from .sdd import SDD
+from .tanimoto_kernel import TanimotoLinOp, DistributedTanimotoLinOp
 
 _KERNEL_LINOP_CLASSES = {
     "rbf": RBFLinOp,
@@ -26,6 +27,8 @@ _KERNEL_LINOP_CLASSES = {
     "distributed_matern32": DistributedMatern32LinOp,
     "matern52": Matern52LinOp,
     "distributed_matern52": DistributedMatern52LinOp,
+    "tanimoto": TanimotoLinOp,
+    "distributed_tanimoto": DistributedTanimotoLinOp,
 }
 
 
