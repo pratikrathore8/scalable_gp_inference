@@ -38,7 +38,8 @@ def _kernel_computation_tanimoto(
     # Compute Tanimoto coefficient
     tanimoto = min_sum / max_sum
 
-    return kernel_config.const_scaling * tanimoto
+    # Do not apply scaling here, since it is handled in the TanimotoLinOp class
+    return tanimoto
 
 
 TanimotoLinOp, DistributedTanimotoLinOp = _create_kernel_classes(
