@@ -178,32 +178,3 @@ class Plotter:
             plt.close(fig)
         else:
             plt.show()
-
-
-# Example Usage ----------------------------------------------------------------
-if __name__ == "__main__":
-    from wandb_utils import get_project_runs, filter_runs, organize_runs_data
-
-    runs = get_project_runs("sketchy-opts", "gp_inference_acsincome")
-    print(f"Total runs found: {len(runs)}")
-    filtered = filter_runs(runs,
-                           require_all={
-                               CONFIG_KEYS["DATASET"]: "acsincome",
-                               CONFIG_KEYS["SOLVER"]: ["sap", "pcg"]
-                           })
-    print(f"Runs after filtering: {len(filtered)}")
-    runs_data = organize_runs_data(filtered, [METRIC_PATHS["TEST_RMSE"],
-                                              METRIC_PATHS["TEST_R2"]])
-
-    plotter = Plotter(runs_data)
-
-    plotter.plot_single_metric(
-        y_metric=METRIC_PATHS["TEST_RMSE"],
-        x_axis=X_AXIS_OPTIONS["TIME"],
-        save_path=Path("plots/acsincome/rmse_comparison")
-    )
-
-    plotter.plot_metric_grid(
-        y_metrics=[METRIC_PATHS["TEST_RMSE"], METRIC_PATHS["TEST_R2"]],
-        save_path=Path("plots/acsincome/multi_plot_comparison")
-    )
