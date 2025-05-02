@@ -1,72 +1,74 @@
-from matplotlib import cm
-from matplotlib.colors import Normalize
+import matplotlib.cm as cm
 import numpy as np
+from compressed_root_norm import CompressedRootNorm
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Global LaTeX / fonts / file-format
-# ──────────────────────────────────────────────────────────────────────────────
-USE_LATEX: bool = False          # call `mpl.rcParams.update({"text.usetex": ...})`
-FONTSIZE:  int  = 20
-EXTENSION: str  = "pdf"         # default file suffix for figures
-BASE_SAVE_DIR: str = "./plots"  # created on demand
+USE_LATEX: bool = False
+FONTSIZE:  int = 14
+EXTENSION: str = "pdf"
+BASE_SAVE_DIR: str = "./plots"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Experiment axes / hyper-parameter labelling
-# ──────────────────────────────────────────────────────────────────────────────
-X_AXIS: str = "time"            # mnemonic used by helper functions
+X_AXIS: str = "time"
 
-# Which hyper-parameters are worth showing in legend labels for each solver
-HPARAMS_TO_LABEL: dict[str, list[str]] = {
-    # PCG exposes its Nyström preconditioner’s details
-    "pcg": ["rank", "rho", "damping_mode"],
-    # SAP (stochastic average projections) has no exposed HPs in the config
-    "sap": [],
+HPARAMS_TO_LABEL = {
+    "sdd": ["precond", "r", "sampling_method"],
+    "sap": ["b"],
+    "nsap": ["b"],
+    "eigenpro2": [],
+    "eigenpro3": ["m"],
+    "pcg": ["precond", "r"],
+    "falkon": ["m"],
+    "mimosa": ["precond", "r", "m"],
 }
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Figure sizing helpers (in inches, to match Matplotlib defaults)
-# ──────────────────────────────────────────────────────────────────────────────
-SZ_COL: float = 8.0   # width for a “single column” figure
-SZ_ROW: float = 6.0   # height for a “single row”
+SZ_COL: float = 8.0
+SZ_ROW: float = 6.0
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Legend placement
-# ──────────────────────────────────────────────────────────────────────────────
-LEGEND_SPECS: dict = dict(
-    loc="upper center",
-    bbox_to_anchor=(0.5, -0.15),
-    ncol=2,
-    frameon=False,
-)
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Colour and marker maps
-# ──────────────────────────────────────────────────────────────────────────────
-OPT_COLORS: dict[str, str] = {
-    "pcg":  cm.get_cmap("Blues")(0.6),
-    "sap":  cm.get_cmap("Greens")(0.6),
+LEGEND_SPECS = {
+    "loc": "lower center",
+    "bbox_to_anchor": (0.5, -0.35),
+    "ncol": 3,
+    "frameon": False,
+    "fontsize": FONTSIZE * 0.7
 }
 
-# Nyström-rank is a continuous quantity → use a continuous colour‐map
-RANK_MIN, RANK_MAX = 0, 2_000
-RANK_NORM = Normalize(vmin=RANK_MIN, vmax=RANK_MAX)
-
-# Discrete markers for preconditioning / sampling options (extend if needed)
-PRECOND_MARKERS: dict[str, dict] = {
-    "nystrom":      {"adaptive": "o", "fixed": "x"},
+OPT_COLORS = {
+    "sdd": "#4B0082",
+    "sap": "#FF4500",
+    "nsap": "#2E8B57",
+    "pcg": "#4169E1",
+    "eigenpro2": "tab:pink",
+    "eigenpro3": "tab:brown",
+    "falkon": "black",
+    "mimosa": "#778899",
 }
 
-SAMPLING_LINESTYLES: dict[str, str] = {
+RANK_MIN = 0
+RANK_MAX = 500 + 1
+NORM = CompressedRootNorm(vmin=RANK_MIN, vmax=RANK_MAX, root=3)
+DUMMY_PLOTTING_RANK = 100
+
+PRECOND_MARKERS = {
+    "nystrom": {"damped": "o", "regularization": "x"},
+    "partial_cholesky": {"greedy": "D", "rpc": "v"},
+    "falkon": {
+        10000: "d",
+        20000: "*",
+        50000: "s",
+        100000: "p",
+        200000: "h",
+        500000: "8",
+        1000000: "+",
+    },
+}
+
+SAMPLING_LINESTYLES = {
     "uniform": "solid",
-    "rls":     "dashed",
+    "rls": "dashed",
 }
 
-TOT_MARKERS: int = 10     # how many points in a line should be rendered as markers
+TOT_MARKERS: int = 10
 MARKERSIZE: int = 8
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Metrics
-# ──────────────────────────────────────────────────────────────────────────────
 METRIC_AX_PLOT_FNS: dict[str, str] = {
     "abs_res":                       "semilogy",
     "rel_res":                       "semilogy",
@@ -77,30 +79,73 @@ METRIC_AX_PLOT_FNS: dict[str, str] = {
     "test_posterior_samples_var":    "plot",
 }
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Metric labels
-# ──────────────────────────────────────────────────────────────────────────────
+
 METRIC_LABELS: dict[str, str] = {
     "abs_res":                       r"Absolute residual",
     "rel_res":                       r"Relative residual",
     "train_rmse":                    r"Train RMSE",
+    "train_posterior_samples_nll":   r"NLL (train samples)",
+    "train_posterior_samples_mean":  r"Train posterior mean",
+    "train_posterior_samples_var":   r"Train posterior variance",
+    "train_mse":                      r"Train MSE",
+    "train_r2":                       r"Train R²",
+    "train_posterior_samples_mean_nll": r"NLL (train posterior mean)",
+    "train_posterior_samples_var_nll":  r"NLL (train posterior variance)",
     "test_rmse":                     r"Test RMSE",
     "test_posterior_samples_nll":    r"NLL (posterior samples)",
     "test_posterior_samples_mean":   r"Posterior mean",
     "test_posterior_samples_var":    r"Posterior variance",
+    "test_r2":                       r"Test R²",
+    "test_mse":                      r"Test MSE",
+    "test_posterior_samples_mean_nll": r"NLL (posterior mean)",
+    "test_posterior_samples_var_nll":  r"NLL (posterior variance)"
 }
 
-OPT_LABELS: dict[str, str] = {
-    "pcg": r"\texttt{PCG}",
-    "sap": r"\texttt{SAP}",
+
+OPT_LABELS = {
+    "sdd": "SDD",
+    "sap": "SAP",
+    "nsap": "NSAP",
+    "eigenpro2": "EigenPro 2.0",
+    "eigenpro3": "EigenPro 3.0",
+    "pcg": "PCG",
+    "falkon": "Falkon",
+    "mimosa": r"\texttt{Mimosa}",
 }
 
-# X-axis labels for the three canonical choices
+RANK_LABEL = "r"
+BLKSZ_LABEL = "b"
+RHO_LABEL = r"\rho"
+PRECOND_LABELS = {
+    "nystrom": [r"Nystr$\ddot{\mathrm{o}}$m"],
+    "partial_cholesky": [],
+}
+MODE_LABELS = {
+    "greedy": "GC",
+    "rpc": "RPC",
+}
+RHO_LABELS = {
+    "damped": r"\mathrm{damped}",
+    "regularization": r"\mathrm{regularization}",
+}
+SAMPLING_LABELS = {
+    "uniform": "uniform",
+    "rls": "RLS",
+}
+
 X_AXIS_LABELS: dict[str, str] = dict(
     time="Time (s)",
     datapasses="Full data passes",
     iters="Iterations",
 )
 
-# Nan sentinel when a metric is missing
 NAN_REPLACEMENT: float = np.inf
+
+X_AXIS_TIME_GRACE = 1.02
+
+PERFORMANCE_AXIS_LABELS = {
+    "x": "Fraction of time budget",
+    "y": "Fraction of problems solved",
+}
+
+SORT_KEYS = ["opt", "accelerated", "sampling_method", "precond_type", "r", "b", "m"]
