@@ -1,40 +1,40 @@
 from typing import Dict, List
-# ──────────────────────────────────────────────────────────────────────────────
+
 ENTITY = "sketchy-opts"
 
-DATASETS = [ "ESR2", 
-            "F2", 
-            "KIT", 
+DATASETS = ["ESR2",
+            "F2",
+            "KIT",
             "PARP1",
             "PGR",
-            "acsincome", 
-            "yolanda", 
-            "malonaldehyde", 
-            "benzene", 
-            "taxi", 
-            "3droad", 
-            "song", 
-            "houseelec" ]  
+            "acsincome",
+            "yolanda",
+            "malonaldehyde",
+            "benzene",
+            "taxi",
+            "3droad",
+            "song",
+            "houseelec"]
 
-PROJECT = "gp_inference_acsincome" # Example project name
-# ──────────────────────────────────────────────────────────────────────────────
+PROJECT = "gp_inference_acsincome"  # Example project name
+
 METRIC_PATHS = {
     # Time metrics
     "STEP": "_step",
     "CUM_TIME": "cum_time",
     "ITER_TIME": "iter_time",
-    
+
     # Core evaluation metrics
     "TEST_RMSE": "metrics.callback.test_rmse",
     "TEST_R2": "metrics.callback.test_r2",
     "POSTERIOR_NLL": "metrics.callback.test_posterior_samples_nll",
     "POSTERIOR_MEAN_NLL": "metrics.callback.test_posterior_samples_mean_nll",
-    
+
     # Histogram metrics (require special handling)
     "POSTERIOR_MEAN": "metrics.callback.test_posterior_samples_mean",
     "POSTERIOR_VAR": "metrics.callback.test_posterior_samples_var"
 }
-# ──────────────────────────────────────────────────────────────────────────────
+
 CONFIG_KEYS = {
     "DATASET": "dataset",
     "SOLVER": "solver_name",
@@ -47,13 +47,10 @@ CONFIG_KEYS = {
     "MAX_ITERS": "solver_config.max_iters"
 }
 
-# ──────────────────────────────────────────────────────────────────────────────
-
 SOLVERS = ["sap", "nsap", "pcg", "sdd", "mimosa", "falkon"]
 KERNEL_TYPES = ["rbf", "matern"]  # Example values
 PRECOND_TYPES = ["nystrom", "partial_cholesky"]
 
-# ──────────────────────────────────────────────────────────────────────────────
 HPARAM_LABELS = {
     "sdd": ["precond", "r", "sampling_method"],
     "sap": ["b"],
@@ -63,7 +60,6 @@ HPARAM_LABELS = {
     "falkon": ["m"]
 }
 
-# ──────────────────────────────────────────────────────────────────────────────
 X_AXIS_OPTIONS = {
     "STEP": "step",
     "TIME": "time",
