@@ -154,3 +154,49 @@ def get_random_features(
         return _tanimoto_random_features(**rf_kwargs)
     else:
         raise ValueError(f"Unknown kernel type: {kernel_type}")
+
+
+def get_prior_samples(
+    X: torch.Tensor,
+    rf_config: RFConfig,
+    kernel_config: KernelConfig,
+    kernel_type: str,
+    noise_variance: float,
+    num_samples: int,
+    return_feature_weights: bool = False,
+) -> tuple[torch.Tensor, torch.Tensor | None]:
+    prior_samples = torch.empty(
+        X.shape[0],
+        num_samples,
+        device=X.device,
+        dtype=X.dtype,
+    )
+
+    if return_feature_weights:
+        W = torch.empty(
+            num_samples, rf_config.num_features, dtype=X.dtype, device=X.device
+        )
+
+    for i in range(num_samples):
+        X_featurized = get_random_features(
+            X,
+            rf_config=rf_config,
+            kernel_config=kernel_config,
+            kernel_type=kernel_type,
+        )
+        w = torch.randn(X_featurized.shape[1], device=X.device, dtype=X.dtype)
+        prior_samples[:, i] = X_featurized @ w
+        prior_samples[:, i] = prior_samples[:, i] + (
+            noise_variance**0.5
+        ) * torch.randn(X.shape[0], device=X.device, dtype=X.dtype)
+
+        if return_feature_weights:
+            W[i, :] = w.clone()  # Clone (for safety) since we delete w later
+
+        # Free up memory
+        del X_featurized, w
+        torch.cuda.empty_cache()
+
+    if return_feature_weights:
+        return prior_samples, W
+    return prior_samples, None

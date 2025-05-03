@@ -4,7 +4,7 @@ import torch
 
 from .hparam_training import GPHparams
 from .kernel_linsys import KernelLinSys
-from .random_features import RFConfig, get_random_features
+from .random_features import RFConfig, get_prior_samples
 from .utils import _get_kernel_linop, _safe_unsqueeze, _get_r2
 
 
@@ -17,76 +17,60 @@ from .utils import _get_kernel_linop, _safe_unsqueeze, _get_r2
 class GPInference:
     def __init__(
         self,
-        Xtr: torch.Tensor,
-        ytr: torch.Tensor,
-        Xtst: torch.Tensor,
-        ytst: torch.Tensor,
         kernel_type: str,
         kernel_hparams: GPHparams,
+        Xtr: torch.Tensor,
+        ytr: torch.Tensor,
+        Xtst: torch.Tensor | None = None,
+        ytst: torch.Tensor | None = None,
         num_posterior_samples: int = 0,
         rf_config: RFConfig = RFConfig(num_features=0),
         distributed: bool = False,
         devices: set[torch.device] | None = None,
     ):
         # NOTE(pratik): this class assumes a zero-mean GP prior
-        self.Xtr = Xtr
-        self.ytr = ytr
-        self.Xtst = Xtst
-        self.ytst = ytst
+        # Extract kernel information
         self.kernel_type = kernel_type
         self.kernel_config = KernelConfig(
             const_scaling=kernel_hparams.signal_variance,
             lengthscale=kernel_hparams.kernel_lengthscale,
         )
         self.noise_variance = kernel_hparams.noise_variance
+
+        # Extract datasets
+        self.Xtr = Xtr
+        self.ytr = ytr
+        self.Xtst = Xtst
+        self.ytst = ytst
+
+        # Extract information for posterior sampling
         self.num_posterior_samples = num_posterior_samples
         self.rf_config = rf_config
-        self.distributed = distributed
-        self.devices = devices
         (
             self.Xtr_prior_samples,
             self.Xtst_prior_samples,
         ) = self._get_approx_prior_samples()
 
+        # Extract information for training
+        self.distributed = distributed
+        self.devices = devices
+
     def _get_approx_prior_samples(self):
         if self.num_posterior_samples > 0 and self.rf_config.num_features > 0:
             X = torch.cat((self.Xtr, self.Xtst), dim=0)
-            Xtr_prior_samples = torch.zeros(
-                self.Xtr.shape[0],
+            prior_samples = get_prior_samples(
+                X,
+                self.rf_config,
+                self.kernel_config,
+                self.kernel_type,
+                self.noise_variance,
                 self.num_posterior_samples,
-                device=self.Xtr.device,
-                dtype=self.Xtr.dtype,
+                return_feature_weights=False,
             )
-            Xtst_prior_samples = torch.zeros(
-                self.Xtst.shape[0],
-                self.num_posterior_samples,
-                device=self.Xtst.device,
-                dtype=self.Xtst.dtype,
+            return (
+                prior_samples[: self.Xtr.shape[0]],
+                prior_samples[self.Xtr.shape[0] :],
             )
-
-            # TODO(pratik): vectorize over posterior samples
-            # However, this could lead to higher memory usage
-            for i in range(self.num_posterior_samples):
-                X_featurized = get_random_features(
-                    X,
-                    rf_config=self.rf_config,
-                    kernel_config=self.kernel_config,
-                    kernel_type=self.kernel_type,
-                )
-                w = torch.randn(X_featurized.shape[1], device=X.device, dtype=X.dtype)
-                prior_samples = X_featurized @ w
-                Xtr_prior_samples[:, i] = prior_samples[: self.Xtr.shape[0]] + (
-                    self.noise_variance**0.5
-                ) * torch.randn(
-                    self.Xtr.shape[0], device=self.Xtr.device, dtype=self.Xtr.dtype
-                )
-                Xtst_prior_samples[:, i] = prior_samples[self.Xtr.shape[0] :]
-
-                # Free up memory
-                del X_featurized, prior_samples, w
-                torch.cuda.empty_cache()
-
-            return Xtr_prior_samples, Xtst_prior_samples
         return (None,) * 2
 
     def _get_linsys(self, use_full_kernel: bool):
