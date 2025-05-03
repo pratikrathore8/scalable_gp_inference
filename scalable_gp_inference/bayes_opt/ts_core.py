@@ -1,75 +1,41 @@
-from typing import NamedTuple
+from dataclasses import dataclass
 
 import torch
 
-from .ts_config import TSConfig
-from .ts_utils import ThompsonDataset, _featurize, get_thompson_sampling_dataset
+from ..random_features import RandomFeatures
+from .configs import BayesOptConfig, TSConfig  # noqa: F401
 
 
-class ThompsonState(NamedTuple):
-    ds: ThompsonDataset
-    feature_params: torch.Tensor
-    true_w: torch.Tensor
-    max_fn_value: float
-    argmax: float
-    noise_scale: float
-
-
-def init_state(config: TSConfig):
-    (
-        ds_init,
-        params,
-        w,
-        max_fn_value,
-        argmax,
-        noise_scale,
-    ) = get_thompson_sampling_dataset(config)
-
-    return ThompsonState(
-        ds=ds_init,
-        feature_params=params,
-        true_w=w,
-        max_fn_value=max_fn_value,
-        argmax=argmax,
-        noise_scale=noise_scale,
-    )
-
-
-def update_state(state: ThompsonState, x_maxim: torch.Tensor):
-    """Update the current state by
-    - adding 'x_maxim' and corresponding objective function values to the state
-    - adding 'x_maxim' and 'y_maxim' to data of the state
-    - adding features for 'x_maxim' to L
-    - replacing current 'argmax' and 'max_fn_value' if a new maximum has been found
+@dataclass(kwargs_only=True, frozen=False)
+class ThompsonDataset:
     """
-    y_maxim = _featurize(x_maxim, state.feature_params) @ state.true_w
-    y_maxim = y_maxim + torch.randn(y_maxim.shape) * state.noise_scale
+    Represents a dataset for Thompson sampling.
 
-    # add besties to state dataset
-    x = torch.concatenate([state.ds.x, x_maxim], axis=0)
-    y = torch.concatenate([state.ds.y, y_maxim], axis=0)
-    N, D = x.shape
-    # construct updated state dataset
-    ds = ThompsonDataset(x=x, y=y, N=N, D=D)
+    Attributes:
+        x (torch.Tensor): The input data.
+        y (torch.Tensor): The target data.
+        N (int): The number of data points.
+        D (int): The number of features.
+    """
 
-    # find maximum of current x_maxim, y_maxim
-    idx = torch.argmax(y_maxim)
-    argmax, max_fn_value = x_maxim[idx], y_maxim[idx]
-    # update maximum in state if appropriate
+    x: torch.Tensor
+    y: torch.Tensor
+    N: int
+    D: int
 
-    # max_fn_value, argmax = jax.lax.cond(
-    #     max_fn_value <= state.max_fn_value,
-    #     lambda: (state.max_fn_value, state.argmax),
-    #     lambda: (max_fn_value, argmax),
-    # )
 
-    # construct and return updated state
-    updated_state = ThompsonState(
-        ds=ds,
-        feature_params=state.feature_params,
-        true_w=state.true_w,
-        max_fn_value=max_fn_value,
-        argmax=argmax,
-        noise_scale=state.noise_scale,
-    )
-    return updated_state
+# NOTE(pratik): we freeze the parameters because we don't want rf_obj to change
+# when we generate a new GPInference object
+@dataclass(kwargs_only=True, frozen=True)
+class ThompsonState:
+    dataset: ThompsonDataset
+    rf_obj: RandomFeatures
+    w_true: torch.Tensor  # Underlying weights used to generate the objective function
+    fn_max: float
+    fn_argmax: int
+    noise_variance: float
+
+
+class BayesOpt:
+    def __init__(bo_config: BayesOptConfig):
+        pass
