@@ -4,18 +4,6 @@ from rlaopt.kernels import KernelConfig
 import torch
 from torch.distributions import Chi2
 
-from .tanimoto_kernel import TanimotoKernelConfig
-
-
-@dataclass(kw_only=True, frozen=False)
-class RFConfig:
-    num_features: int
-
-
-@dataclass(kw_only=True, frozen=False)
-class TanimotoRFConfig(RFConfig):
-    modulo_value: int
-
 
 def _get_safe_lengthscale(lengthscale: float | torch.Tensor) -> torch.Tensor:
     if isinstance(lengthscale, torch.Tensor):
@@ -24,35 +12,33 @@ def _get_safe_lengthscale(lengthscale: float | torch.Tensor) -> torch.Tensor:
 
 
 def _random_features(
-    X: torch.Tensor, num_features: int, const_scaling: float, Omega: torch.Tensor
+    X: torch.Tensor, const_scaling: float, weights: dict
 ) -> torch.Tensor:
-    B = 2 * torch.pi * torch.rand(num_features, device=X.device, dtype=X.dtype)
-    scale_factor = (const_scaling * 2.0 / num_features) ** 0.5
+    scale_factor = (const_scaling * 2.0 / weights["Omega"].shape[1]) ** 0.5
 
     # Use in-place operations to reduce memory usage
     # Equivalent to result = scale_factor * torch.cos(X @ Omega + B)
-    result = X @ Omega
-    result.add_(B)
+    result = X @ weights["Omega"]
+    result.add_(weights["B"])
     torch.cos(result, out=result)
     result.mul_(scale_factor)
     return result
 
 
 def _rbf_random_features(
-    X: torch.Tensor, rf_config: RFConfig, kernel_config: KernelConfig
+    X: torch.Tensor,
+    kernel_config: KernelConfig,
+    weights: dict,
 ) -> torch.Tensor:
-    M = rf_config.num_features
     safe_lengthscale = _get_safe_lengthscale(kernel_config.lengthscale)
-    Omega = (
-        torch.randn(X.shape[1], M, device=X.device, dtype=X.dtype) / safe_lengthscale
-    )
-    return _random_features(X, M, kernel_config.const_scaling, Omega)
+    scaled_weights = dict(Omega=weights["Omega"] / safe_lengthscale, B=weights["B"])
+    return _random_features(X, kernel_config.const_scaling, scaled_weights)
 
 
 def _matern_random_features(
     X: torch.Tensor,
-    rf_config: RFConfig,
     kernel_config: KernelConfig,
+    weights: dict,
     nu: float,
 ) -> torch.Tensor:
     safe_lengthscale = _get_safe_lengthscale(kernel_config.lengthscale)
@@ -62,105 +48,71 @@ def _matern_random_features(
     # Sampling from the multivariate t-distribution can be performed
     # using the normal and chi-square distributions.
     # See https://en.wikipedia.org/wiki/Multivariate_t-distribution for details.
-    M = rf_config.num_features
-    Y = torch.randn(X.shape[1], M, device=X.device, dtype=X.dtype) / safe_lengthscale
+    Y = weights["Omega"] / safe_lengthscale
     df = torch.tensor([2.0 * nu], device=X.device, dtype=X.dtype)
     # The sample method adds an extra dimension since df is a tensor,
     # so we need to squeeze it out
-    u = Chi2(df).sample(sample_shape=(M,)).squeeze(-1)
-    Omega = torch.sqrt(df) * Y / torch.sqrt(u)
-    return _random_features(X, M, kernel_config.const_scaling, Omega)
+    u = Chi2(df).sample(sample_shape=(Y.shape[1],)).squeeze(-1)
+    Y_scaled = torch.sqrt(df) * Y / torch.sqrt(u)
+    scaled_weights = dict(Omega=Y_scaled, B=weights["B"])
+    return _random_features(X, kernel_config.const_scaling, scaled_weights)
 
 
-def _tanimoto_random_features(
-    X: torch.Tensor,
-    rf_config: TanimotoRFConfig,
-    kernel_config: TanimotoKernelConfig,
-) -> torch.Tensor:
-    """
-    Compute random features for Tanimoto kernel approximation
-    with vectorized operations.
-
-    Args:
-        x: Input tensor of shape (batch_size, D)
-        rf_config: Random feature configuration
-        modulo_value: Modulo value for feature hashing
-
-    Returns:
-        Random features tensor of shape (batch_size, n_features)
-    """
-    batch_size, D = X.shape
-    M = rf_config.num_features
-    device = X.device
-
-    # Generate random parameters
-    r = -torch.log(torch.rand(M, D, device=device)) - torch.log(
-        torch.rand(M, D, device=device)
-    )
-    c = -torch.log(torch.rand(M, D, device=device)) - torch.log(
-        torch.rand(M, D, device=device)
-    )
-    xi = (
-        torch.randint(0, 2, (M, D, rf_config.modulo_value), device=device) * 2 - 1
-    )  # Rademacher distribution
-    beta = torch.rand(M, D, device=device)
-
-    # Process each feature independently for better memory management
-    features = torch.zeros(batch_size, M, device=device)
-
-    for m in range(M):
-        # Compute log-space transformation for all samples
-        t = torch.floor(
-            torch.log(X) / r[m].unsqueeze(0) + beta[m].unsqueeze(0)
-        )  # (batch_size, D)
-        ln_y = r[m].unsqueeze(0) * (t - beta[m].unsqueeze(0))  # (batch_size, D)
-        ln_a = (
-            torch.log(c[m].unsqueeze(0)) - ln_y - r[m].unsqueeze(0)
-        )  # (batch_size, D)
-
-        # Find argmin for each sample
-        a_argmin = torch.argmin(ln_a, dim=1)  # (batch_size,)
-
-        # Get corresponding t values
-        batch_indices = torch.arange(batch_size, device=device)
-        t_selected = (
-            t[batch_indices, a_argmin].long() % rf_config.modulo_value
-        )  # (batch_size,)
-
-        # Select features from xi
-        features[:, m] = xi[m, a_argmin, t_selected]
-
-    scale_factor = (kernel_config.const_scaling / M) ** 0.5
-
-    return scale_factor * features
+@dataclass(kw_only=True, frozen=False)
+class RFConfig:
+    num_features: int
+    regenerate: bool = True
 
 
-def get_random_features(
-    X: torch.Tensor,
-    rf_config: RFConfig,
-    kernel_config: KernelConfig,
-    kernel_type: str,
-) -> torch.Tensor:
-    rf_kwargs = dict(X=X, rf_config=rf_config, kernel_config=kernel_config)
-    if kernel_type == "rbf":
-        return _rbf_random_features(**rf_kwargs)
-    elif kernel_type == "matern12":
-        return _matern_random_features(**rf_kwargs, nu=0.5)
-    elif kernel_type == "matern32":
-        return _matern_random_features(**rf_kwargs, nu=1.5)
-    elif kernel_type == "matern52":
-        return _matern_random_features(**rf_kwargs, nu=2.5)
-    elif kernel_type == "tanimoto":
-        return _tanimoto_random_features(**rf_kwargs)
-    else:
-        raise ValueError(f"Unknown kernel type: {kernel_type}")
+class RandomFeatures:
+    def __init__(
+        self,
+        kernel_config: KernelConfig,
+        kernel_type: str,
+        rf_config: RFConfig,
+    ):
+        self.kernel_config = kernel_config
+        self.kernel_type = kernel_type
+        self.rf_config = rf_config
+        self.fixed_weights = None
+
+    def _check_kernel_type(kernel_type: str):
+        if kernel_type not in ["rbf", "matern12", "matern32", "matern52"]:
+            raise ValueError(f"Unknown kernel type: {kernel_type}")
+
+    def _generate_weights(self, X: torch.Tensor):
+        # NOTE(pratik): implicitly assumes kernel_type is rbf or matern
+        num_features = self.rf_config.num_features
+        Omega = torch.randn(X.shape[1], num_features, device=X.device, dtype=X.dtype)
+        B = 2 * torch.pi * torch.rand(num_features, device=X.device, dtype=X.dtype)
+        return dict(Omega=Omega, B=B)
+
+    def get_random_features(self, X: torch.Tensor):
+        # If we want fresh samples, regenerate the weights
+        if self.rf_config.regenerate:
+            weights = self._generate_weights(X)
+        else:
+            # Otherwise check if we already have fixed weights stored
+            if self.fixed_weights is None:
+                self.fixed_weights = self._generate_weights(X)
+            weights = self.fixed_weights
+
+        rf_kwargs = dict(X=X, kernel_config=self.kernel_config, weights=weights)
+        kernel_type = self.kernel_type
+
+        if kernel_type == "rbf":
+            return _rbf_random_features(**rf_kwargs)
+        elif kernel_type == "matern12":
+            return _matern_random_features(**rf_kwargs, nu=0.5)
+        elif kernel_type == "matern32":
+            return _matern_random_features(**rf_kwargs, nu=1.5)
+        elif kernel_type == "matern52":
+            return _matern_random_features(**rf_kwargs, nu=2.5)
 
 
 def get_prior_samples(
     X: torch.Tensor,
-    rf_config: RFConfig,
-    kernel_config: KernelConfig,
-    kernel_type: str,
+    rf_obj: RandomFeatures,
     noise_variance: float,
     num_samples: int,
     return_feature_weights: bool = False,
@@ -174,16 +126,11 @@ def get_prior_samples(
 
     if return_feature_weights:
         W = torch.empty(
-            num_samples, rf_config.num_features, dtype=X.dtype, device=X.device
+            num_samples, rf_obj.rf_config.num_features, dtype=X.dtype, device=X.device
         )
 
     for i in range(num_samples):
-        X_featurized = get_random_features(
-            X,
-            rf_config=rf_config,
-            kernel_config=kernel_config,
-            kernel_type=kernel_type,
-        )
+        X_featurized = rf_obj.get_random_features(X)
         w = torch.randn(X_featurized.shape[1], device=X.device, dtype=X.dtype)
         prior_samples[:, i] = X_featurized @ w
         prior_samples[:, i] = prior_samples[:, i] + (

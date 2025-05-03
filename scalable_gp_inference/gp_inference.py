@@ -4,7 +4,7 @@ import torch
 
 from .hparam_training import GPHparams
 from .kernel_linsys import KernelLinSys
-from .random_features import RFConfig, get_prior_samples
+from .random_features import RFConfig, RandomFeatures, get_prior_samples
 from .utils import _get_kernel_linop, _safe_unsqueeze, _get_r2
 
 
@@ -24,7 +24,7 @@ class GPInference:
         Xtst: torch.Tensor | None = None,
         ytst: torch.Tensor | None = None,
         num_posterior_samples: int = 0,
-        rf_config: RFConfig = RFConfig(num_features=0),
+        rf_config: RFConfig = RFConfig(num_features=0, regenerate=True),
         distributed: bool = False,
         devices: set[torch.device] | None = None,
     ):
@@ -45,7 +45,14 @@ class GPInference:
 
         # Extract information for posterior sampling
         self.num_posterior_samples = num_posterior_samples
-        self.rf_config = rf_config
+        # Only make the RandomFeatures object
+        # if the number of random features is positive
+        if rf_config.num_features > 0:
+            self.rf_obj = RandomFeatures(
+                self.kernel_config, self.kernel_type, rf_config
+            )
+        else:
+            self.rf_obj = None
         (
             self.Xtr_prior_samples,
             self.Xtst_prior_samples,
@@ -56,7 +63,7 @@ class GPInference:
         self.devices = devices
 
     def _get_approx_prior_samples(self):
-        if self.num_posterior_samples > 0 and self.rf_config.num_features > 0:
+        if self.num_posterior_samples > 0 and self.rf_obj is not None:
             # Be careful is Xtst is None
             if self.Xtst is not None:
                 X_in = torch.cat((self.Xtr, self.Xtst), dim=0)
