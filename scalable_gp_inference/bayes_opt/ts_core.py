@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import torch
 
+from ..kernel_linsys import KernelLinSys  # noqa: F401
 from ..random_features import RandomFeatures
 from .configs import BayesOptConfig, TSConfig  # noqa: F401
 
@@ -33,9 +34,33 @@ class ThompsonState:
     w_true: torch.Tensor  # Underlying weights used to generate the objective function
     fn_max: float
     fn_argmax: int
-    noise_variance: float
 
 
 class BayesOpt:
-    def __init__(bo_config: BayesOptConfig):
-        pass
+    def __init__(
+        self, bo_config: BayesOptConfig, device: torch.device, dtype: torch.dtype
+    ):
+        # Unpack inputs from bo_config
+        self.min_val = bo_config.min_val
+        self.max_val = bo_config.max_val
+        self.dim = bo_config.dim
+        self.kernel_config = bo_config.kernel_config
+        self.noise_variance = bo_config.noise_variance
+        self.sampling_method = bo_config.sampling_method
+        self.num_init_samples = bo_config.num_init_samples
+        self.acquisition_opt_config = bo_config.acquisition_opt_config
+
+        self.device = device
+        self.dtype = dtype
+
+        # Get initialization points
+        x_init = self._get_x_init()  # noqa: F841
+
+    def _get_x_init(self):
+        # Sample intializaiton points uniformly from the domain
+        slope = self.max_val - self.min_val
+        intercept = self.min_val
+        x_init = torch.rand(
+            self.num_init_samples, self.dim, device=self.device, dtype=self.dtype
+        )
+        return slope * x_init + intercept

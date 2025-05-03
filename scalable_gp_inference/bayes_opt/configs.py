@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from rlaopt.kernels import KernelConfig
-from rlaopt.solvers import SolverConfig
 from .adam_config import AdamConfig
 
 
@@ -11,13 +10,17 @@ class BayesOptConfig:
     dim: int = 8
     kernel_config: KernelConfig
     noise_variance: float = 1e-6
-    sampling_method: str = "uniform"  # or "trunc_normal"
     # Number of samples for initialization
     num_init_samples: int = 50000
-    # Optimization configuration for solving KRR linear systems to compute the posterior
-    krr_solver_config: SolverConfig
     # Acquisition function optimization configuration
     acquisition_opt_config: AdamConfig = AdamConfig(step_size=1e-3)
+
+    def __post_init__(self):
+        if self.min_val >= self.max_val:
+            raise ValueError(
+                "self.min_val must be smaller than self.max_val! "
+                f"Received self.min_val = {self.min_val}, self.max_val = {self.max_val}"
+            )
 
 
 @dataclass(kw_only=True, freeze=True)
