@@ -79,6 +79,21 @@ class GPHparams:
             noise_variance=self.noise_variance,
         )
 
+    def to_dict(self) -> dict[str, float | list[float]]:
+        """Convert GPHparams to a dictionary."""
+        # Check if kernel_lengthscale is a tensor
+        if isinstance(self.kernel_lengthscale, torch.Tensor):
+            # Convert to list if it's a tensor
+            kernel_lengthscale = self.kernel_lengthscale.tolist()
+        else:
+            kernel_lengthscale = self.kernel_lengthscale
+
+        return {
+            "signal_variance": self.signal_variance,
+            "kernel_lengthscale": kernel_lengthscale,
+            "noise_variance": self.noise_variance,
+        }
+
     def __add__(self, other: "GPHparams") -> "GPHparams":
         """Add two GPHparams instances, returning a new instance."""
         if not isinstance(other, GPHparams):
