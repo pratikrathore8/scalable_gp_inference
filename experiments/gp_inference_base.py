@@ -16,7 +16,8 @@ from experiments.utils import (
     set_random_seed,
     set_precision,
     get_solver_config,
-    get_saved_gp_hparams,
+    get_gp_hparams,
+    get_rf_config,
 )
 
 
@@ -144,7 +145,7 @@ def main():
     set_precision(args.dtype)
 
     # Load the GP hyperparameters
-    gp_hparams = get_saved_gp_hparams(args.dataset, args.kernel_type, args.seed)
+    gp_hparams = get_gp_hparams(args.dataset, args.kernel_type, args.seed)
     gp_hparams = gp_hparams.to(device=args.devices[0], dtype=args.dtype)
 
     # Load the dataset for inference
@@ -164,6 +165,11 @@ def main():
         device=args.devices[0],
     )
 
+    # Get random features configuration
+    rf_config = get_rf_config(
+        kernel_type=args.kernel_type, num_random_features=args.num_random_features
+    )
+
     # Get GP inference object
     model = GPInference(
         Xtr=dataset.Xtr,
@@ -173,7 +179,7 @@ def main():
         kernel_type=args.kernel_type,
         kernel_hparams=gp_hparams,
         num_posterior_samples=args.num_posterior_samples,
-        num_random_features=args.num_random_features,
+        rf_config=rf_config,
         distributed=len(args.devices) > 1,
         devices=set(args.devices),
     )
@@ -186,7 +192,9 @@ def main():
             "ntst": dataset.Xtst.shape[0],
             "p": dataset.Xtr.shape[1],
             "kernel_type": args.kernel_type,
-            "gp_hparams": gp_hparams.to(device="cpu"),
+            "gp_hparams": gp_hparams.to_dict(),
+            "num_posterior_samples": args.num_posterior_samples,
+            "rf_config": rf_config,
             "seed": args.seed,
             "all_devices": args.devices,
             "max_passes": args.opt_max_passes,
