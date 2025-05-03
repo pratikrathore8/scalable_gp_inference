@@ -57,9 +57,14 @@ class GPInference:
 
     def _get_approx_prior_samples(self):
         if self.num_posterior_samples > 0 and self.rf_config.num_features > 0:
-            X = torch.cat((self.Xtr, self.Xtst), dim=0)
+            # Be careful is Xtst is None
+            if self.Xtst is not None:
+                X_in = torch.cat((self.Xtr, self.Xtst), dim=0)
+            else:
+                X_in = self.Xtr
+
             prior_samples = get_prior_samples(
-                X,
+                X_in,
                 self.rf_config,
                 self.kernel_config,
                 self.kernel_type,
@@ -67,10 +72,15 @@ class GPInference:
                 self.num_posterior_samples,
                 return_feature_weights=False,
             )
-            return (
-                prior_samples[: self.Xtr.shape[0]],
-                prior_samples[self.Xtr.shape[0] :],
-            )
+
+            # Make sure to return None for the test samples if Xtst is None
+            if self.Xtst is not None:
+                return (
+                    prior_samples[: self.Xtr.shape[0]],
+                    prior_samples[self.Xtr.shape[0] :],
+                )
+            else:
+                return (prior_samples, None)
         return (None,) * 2
 
     def _get_linsys(self, use_full_kernel: bool):
@@ -153,7 +163,7 @@ class GPInference:
         )
 
         # Compute variances and negative log likelihood using posterior samples
-        if self.Xtr_prior_samples is not None and self.Xtst_prior_samples is not None:
+        if self.Xtst_prior_samples is not None:
             W_diff = _safe_unsqueeze(W[:, 0]) - W[:, 1:]
             test_posterior_samples = self.Xtst_prior_samples + tst_kernel_linop @ W_diff
             test_posterior_samples_mean = test_posterior_samples.mean(
