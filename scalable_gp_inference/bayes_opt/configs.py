@@ -8,8 +8,11 @@ class BayesOptConfig:
     min_val: float = 0.0
     max_val: float = 1.0
     dim: int = 8
+    kernel_type: str
     kernel_config: KernelConfig
     noise_variance: float = 1e-6
+    # Number of random features for approximating the posterior
+    num_random_features: int = 5000
     # Number of samples for initialization
     num_init_samples: int = 50000
     # Acquisition function optimization configuration
@@ -27,9 +30,6 @@ class BayesOptConfig:
 class TSConfig:
     # Number of iterations to run Thompson sampling in Bayesian optimization
     num_iters: int = 30
-
-    # Parameters for the posterior
-    num_random_features: int = 5000
 
     # Exploration to exploitation proportion
     exp_proportion: float = 0.1

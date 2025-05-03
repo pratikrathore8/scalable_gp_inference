@@ -2,9 +2,9 @@ from dataclasses import dataclass
 
 import torch
 
-from ..kernel_linsys import KernelLinSys  # noqa: F401
-from ..random_features import RandomFeatures
-from .configs import BayesOptConfig, TSConfig  # noqa: F401
+from ..kernel_linsys import KernelLinSys
+from ..random_features import RFConfig, RandomFeatures
+from .configs import BayesOptConfig, TSConfig
 
 
 @dataclass(kwargs_only=True, frozen=False)
@@ -25,9 +25,7 @@ class ThompsonDataset:
     D: int
 
 
-# NOTE(pratik): we freeze the parameters because we don't want rf_obj to change
-# when we generate a new GPInference object
-@dataclass(kwargs_only=True, frozen=True)
+@dataclass(kwargs_only=True, frozen=False)
 class ThompsonState:
     dataset: ThompsonDataset
     rf_obj: RandomFeatures
@@ -44,9 +42,10 @@ class BayesOpt:
         self.min_val = bo_config.min_val
         self.max_val = bo_config.max_val
         self.dim = bo_config.dim
+        self.kernel_type = bo_config.kernel_type
         self.kernel_config = bo_config.kernel_config
         self.noise_variance = bo_config.noise_variance
-        self.sampling_method = bo_config.sampling_method
+        self.num_random_features = bo_config.num_random_features
         self.num_init_samples = bo_config.num_init_samples
         self.acquisition_opt_config = bo_config.acquisition_opt_config
 
@@ -54,7 +53,9 @@ class BayesOpt:
         self.dtype = dtype
 
         # Get initialization points
-        x_init = self._get_x_init()  # noqa: F841
+        x_init = self._get_x_init()
+        rf_config = RFConfig(num_features=self.num_random_features, regenerate=False)
+        rf_obj = RandomFeatures(self.kernel_config, self.kernel_type, rf_config)
 
     def _get_x_init(self):
         # Sample intializaiton points uniformly from the domain
