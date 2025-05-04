@@ -16,7 +16,7 @@ class BayesOptConfig:
     # Number of samples for initialization
     num_init_samples: int = 50000
     # Acquisition function optimization configuration
-    acquisition_opt_config: AdamConfig = AdamConfig(step_size=1e-3)
+    acquisition_opt_config: AdamConfig = AdamConfig(step_size=1e-1)
     num_acquisition_opt_iters: int = 100
 
     def __post_init__(self):

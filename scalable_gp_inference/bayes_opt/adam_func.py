@@ -52,7 +52,7 @@ def _init_state(params: torch.Tensor, config: AdamConfig) -> tuple[AdamState]:
 
 def _clipped_step(params: torch.Tensor, state: AdamState, grads: torch.Tensor):
     params, state = _step(params, state, grads)
-    return params.clip(min=state.clip_min_val, max=state.clip_min_val), state
+    return params.clip(min=state.clip_min_val, max=state.clip_max_val), state
 
 
 def _step(params: torch.Tensor, state: AdamState, grads: torch.Tensor):

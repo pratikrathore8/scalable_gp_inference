@@ -323,18 +323,20 @@ class BayesOpt:
             self.noise_variance,
         )
 
-        # Update state based on newly evaluated objective values
-        self.ts_state.X = torch.cat((self.ts_state.X, top_acquisition_points), dim=0)
-        self.ts_state.y = torch.cat((self.ts_state.y, y_top), dim=0)
-
         # Find maximum of newly evaluated points
         y_top_max, y_top_argmax = _max_y(y_top)
 
-        # If the maxmimum over newly evaluated points is larger than
+        # If the maximum over newly evaluated points is larger than
         # everything we have seen then update fn_max and fn_argmax in the state
+        # We do this before updating X and y in the state to ensure fn_argmax
+        # is updated correctly
         if y_top_max > self.ts_state.fn_max:
             self.ts_state.fn_max = y_top_max
             self.ts_state.fn_argmax = len(self.ts_state) + y_top_argmax
+
+        # Update state based on newly evaluated objective values
+        self.ts_state.X = torch.cat((self.ts_state.X, top_acquisition_points), dim=0)
+        self.ts_state.y = torch.cat((self.ts_state.y, y_top), dim=0)
 
     def step(self, ts_config: TSConfig, krr_solver_config: SolverConfig | None = None):
         if ts_config.acquisition_method == "random_search":
@@ -371,11 +373,15 @@ class BayesOpt:
                 reg=self.noise_variance,
                 kernel_type=self.kernel_type,
                 kernel_config=self.kernel_config,
-                use_full_kernel=False,
+                use_full_kernel=True,
             )
             alpha_all, _ = krr_linsys.solve(
                 solver_config=krr_solver_config, W_init=torch.zeros_like(krr_linsys.B)
             )
+
+            # final_log_idx = list(log.keys())[-1]
+            # print(log[final_log_idx]["metrics"]["internal_metrics"]["rel_res"])
+
             alpha_obj = alpha_all[:, 0]
             alpha_samples = alpha_all[:, 1:]
 
