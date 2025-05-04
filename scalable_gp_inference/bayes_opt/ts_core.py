@@ -84,7 +84,7 @@ class BayesOpt:
         self.dtype = dtype
 
         # Get initialization points
-        X_init = self._get_x_init()
+        X_init = self._sample_uniformly_from_domain(self.num_init_samples)
 
         # Setup random features
         rf_config = RFConfig(num_features=self.num_random_features, regenerate=False)
@@ -107,39 +107,55 @@ class BayesOpt:
             fn_argmax=fn_argmax,
         )
 
-    def _get_x_init(self) -> torch.Tensor:
-        # Sample intializaiton points uniformly from the domain
+    def _sample_uniformly_from_domain(self, num_samples: int) -> torch.Tensor:
         slope = self.max_val - self.min_val
         intercept = self.min_val
-        x_init = torch.rand(
-            self.num_init_samples, self.dim, device=self.device, dtype=self.dtype
+        samples = torch.rand(
+            num_samples, self.dim, device=self.device, dtype=self.dtype
         )
-        return slope * x_init + intercept
+        return slope * samples + intercept
 
-    def _update_state(self, top_acquisition_points: torch.Tensor):
-        # Evaluate objective at top acquisition points
-        y_top = _eval_y(
-            top_acquisition_points,
-            self.ts_state.rf_obj,
-            self.ts_state.w_true,
-            self.noise_variance,
-        )
+    def _get_exploration_points(
+        self, num_samples: int, method: str, exploration_proportion: float
+    ) -> torch.Tensor:
+        if method == "uniform":
+            return self._sample_uniformly_from_domain(num_samples)
+        elif method == "nearby":
+            # In this context, num_explore is really
+            # how many samples we want to be uniformly random.
+            # num_exploit is how many samples we want to draw
+            # based on the evaluated objectives
+            num_explore = int(num_samples * exploration_proportion)
+            num_exploit = num_samples - num_explore
 
-        # Update state based on newly evaluated objective values
-        self.ts_state.X = torch.cat((self.ts_state.X, top_acquisition_points), dim=0)
-        self.ts_state.y = torch.cat((self.ts_state.y, y_top), dim=0)
+            X_list = []
 
-        # Find maximum of newly evaluated points
-        y_top_max, y_top_argmax = _max_y(y_top)
+            if num_explore > 0:
+                X_explore = self._sample_uniformly_from_domain(num_explore)
+                X_list.append(X_explore)
 
-        # If the maxmimum over newly evaluated points is larger than
-        # everything we have seen then update fn_max and fn_argmax in the state
-        if y_top_max > self.ts_state.fn_max:
-            self.ts_state.fn_max = y_top_max
-            self.ts_state.fn_argmax = len(self.ts_state) + y_top_argmax
+            if num_exploit > 0:
+                localized_noise = torch.randn(
+                    num_exploit, self.dim, dtype=self.dtype, device=self.device
+                )
+                localized_noise *= self.kernel_config.lengthscale / 2
 
-    def _get_exploration_points(self, num_samples: int, method: str) -> torch.Tensor:
-        pass
+                # NOTE(pratik): In the implementation by Lin et al. (2023),
+                # the - on the minimum is a +, but this could
+                # lead to negative values for the scores...
+                scores = self.ts_state.y - self.ts_state.y.min() + 1e-6
+                sampling_idxs = torch.multinomial(
+                    scores, num_samples=num_exploit, replacement=True
+                )
+                X_exploit = self.ts_state.X[sampling_idxs] + localized_noise
+                X_list.append(X_exploit)
+
+            # Combine explore + exploit points and ensure they lie within the domain
+            X_combined = torch.cat(X_list, dim=0)
+            X_combined = torch.clamp(X_combined, min=self.min_val, max=self.max_val)
+            return X_combined
+        else:
+            raise ValueError("method must be one of 'uniform' or 'nearby'")
 
     def _get_acquisition_fn(
         self,
@@ -181,7 +197,9 @@ class BayesOpt:
         for _ in range(ts_config.num_exp_iters):
             # First, sample a bunch of candidate points
             exploration_points = self._get_exploration_points(
-                ts_config.num_exp_samples, method=ts_config.exp_method
+                ts_config.num_exp_samples,
+                method=ts_config.exp_method,
+                exploration_proportion=ts_config.exp_proportion,
             )
 
             # Second, evaluate the acquisition functions at these candidate points
@@ -214,6 +232,28 @@ class BayesOpt:
             ts_config.num_top_acquisition_points,
         )
 
+    def _update_state(self, top_acquisition_points: torch.Tensor):
+        # Evaluate objective at top acquisition points
+        y_top = _eval_y(
+            top_acquisition_points,
+            self.ts_state.rf_obj,
+            self.ts_state.w_true,
+            self.noise_variance,
+        )
+
+        # Update state based on newly evaluated objective values
+        self.ts_state.X = torch.cat((self.ts_state.X, top_acquisition_points), dim=0)
+        self.ts_state.y = torch.cat((self.ts_state.y, y_top), dim=0)
+
+        # Find maximum of newly evaluated points
+        y_top_max, y_top_argmax = _max_y(y_top)
+
+        # If the maxmimum over newly evaluated points is larger than
+        # everything we have seen then update fn_max and fn_argmax in the state
+        if y_top_max > self.ts_state.fn_max:
+            self.ts_state.fn_max = y_top_max
+            self.ts_state.fn_argmax = len(self.ts_state) + y_top_argmax
+
     def step(self, ts_config: TSConfig, krr_config: SolverConfig | None = None):
         if ts_config.acquisition_method == "random_search":
             # If we are acquiring radomly, get acquisition points
@@ -221,6 +261,7 @@ class BayesOpt:
             acquisition_points = self._get_exploration_points(
                 ts_config.num_acquisitions * ts_config.num_top_acquisition_points,
                 method="uniform",
+                exploration_proportion=None,
             )
             self._update_state(acquisition_points)
         # else:
