@@ -13,9 +13,9 @@ from .adam_func import init_adam
 
 
 @dataclass(kw_only=True, frozen=False)
-class ThompsonState:
+class BayesOptState:
     """
-    Represents the state for Thompson sampling in Bayesian optimization.
+    Represents the state for in Bayesian optimization.
 
     Attributes:
         x (torch.Tensor): Queried points in the domain.
@@ -102,8 +102,8 @@ class BayesOpt:
         # Find max value and index corresponding to max value
         fn_max, fn_argmax = _max_y(y_init)
 
-        # Initialize Thompson state
-        self.ts_state = ThompsonState(
+        # Initialize Bayesian optimization state
+        self._bo_state = BayesOptState(
             X=X_init,
             y=y_init,
             rf_obj=rf_obj,
@@ -111,6 +111,10 @@ class BayesOpt:
             fn_max=fn_max,
             fn_argmax=fn_argmax,
         )
+
+    @property
+    def bo_state(self) -> BayesOptState:
+        return self._bo_state
 
     def _sample_uniformly_from_domain(self, num_samples: int) -> torch.Tensor:
         slope = self.max_val - self.min_val
@@ -148,11 +152,11 @@ class BayesOpt:
                 # NOTE(pratik): In the implementation by Lin et al. (2023),
                 # the - on the minimum is a +, but this could
                 # lead to negative values for the scores...
-                scores = self.ts_state.y - self.ts_state.y.min() + 1e-6
+                scores = self._bo_state.y - self._bo_state.y.min() + 1e-6
                 sampling_idxs = torch.multinomial(
                     scores, num_samples=num_exploit, replacement=True
                 )
-                X_exploit = self.ts_state.X[sampling_idxs] + localized_noise
+                X_exploit = self._bo_state.X[sampling_idxs] + localized_noise
                 X_list.append(X_exploit)
 
             # Combine explore + exploit points and ensure they lie within the domain
@@ -181,10 +185,10 @@ class BayesOpt:
             # alpha_sample: (n_train,)
             # w_sample: (n_features,)
             # return: ()
-            L = self.ts_state.rf_obj.get_random_features(x)
+            L = self._bo_state.rf_obj.get_random_features(x)
             K = _get_kernel_linop(
                 x.unsqueeze(0),
-                self.ts_state.X,
+                self._bo_state.X,
                 self.kernel_type,
                 self.kernel_config,
                 distributed=False,
@@ -318,8 +322,8 @@ class BayesOpt:
         # Evaluate objective at top acquisition points
         y_top = _eval_y(
             top_acquisition_points,
-            self.ts_state.rf_obj,
-            self.ts_state.w_true,
+            self._bo_state.rf_obj,
+            self._bo_state.w_true,
             self.noise_variance,
         )
 
@@ -330,13 +334,13 @@ class BayesOpt:
         # everything we have seen then update fn_max and fn_argmax in the state
         # We do this before updating X and y in the state to ensure fn_argmax
         # is updated correctly
-        if y_top_max > self.ts_state.fn_max:
-            self.ts_state.fn_max = y_top_max
-            self.ts_state.fn_argmax = len(self.ts_state) + y_top_argmax
+        if y_top_max > self._bo_state.fn_max:
+            self._bo_state.fn_max = y_top_max
+            self._bo_state.fn_argmax = len(self._bo_state) + y_top_argmax
 
         # Update state based on newly evaluated objective values
-        self.ts_state.X = torch.cat((self.ts_state.X, top_acquisition_points), dim=0)
-        self.ts_state.y = torch.cat((self.ts_state.y, y_top), dim=0)
+        self._bo_state.X = torch.cat((self._bo_state.X, top_acquisition_points), dim=0)
+        self._bo_state.y = torch.cat((self._bo_state.y, y_top), dim=0)
 
     def step(self, ts_config: TSConfig, krr_solver_config: SolverConfig | None = None):
         if ts_config.acquisition_method == "random_search":
@@ -355,8 +359,8 @@ class BayesOpt:
 
             # Get prior samples, which we will use to sample from the posterior
             prior_samples, w_samples = get_prior_samples(
-                X=self.ts_state.X,
-                rf_obj=self.ts_state.rf_obj,
+                X=self._bo_state.X,
+                rf_obj=self._bo_state.rf_obj,
                 noise_variance=self.noise_variance,
                 num_samples=ts_config.num_acquisition_fns,
                 return_feature_weights=True,
@@ -365,9 +369,9 @@ class BayesOpt:
             # Form KRR linear system which we use to solve
             # for alpha_obj and alpha_samples
             krr_linsys = KernelLinSys(
-                X=self.ts_state.X,
+                X=self._bo_state.X,
                 B=torch.cat(
-                    (_safe_unsqueeze(self.ts_state.y), _safe_unsqueeze(prior_samples)),
+                    (_safe_unsqueeze(self._bo_state.y), _safe_unsqueeze(prior_samples)),
                     dim=1,
                 ),
                 reg=self.noise_variance,
