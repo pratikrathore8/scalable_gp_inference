@@ -54,13 +54,13 @@ class ThompsonState:
 
 def _eval_y(
     X: torch.Tensor, rf_obj: RandomFeatures, w: torch.Tensor, noise_variance: float
-):
+) -> torch.Tensor:
     y = rf_obj.get_random_features(X) @ w
     y += torch.randn_like(y) * (noise_variance**0.5)
     return y
 
 
-def _max_y(y: torch.Tensor):
+def _max_y(y: torch.Tensor) -> tuple[float, int]:
     y_max, y_argmax = torch.max(y, dim=0)
     return y_max.item(), y_argmax.item()
 
@@ -176,9 +176,6 @@ class BayesOpt:
         # Necessary to make vmap work
         alpha_samples = alpha_samples.T
 
-        print(f"alpha_samples: {alpha_samples.shape}")
-        print(f"w_samples: {w_samples.shape}")
-
         def _fn(x, alpha_sample, w_sample):
             # x: (D,)
             # alpha_sample: (n_train,)
@@ -237,20 +234,27 @@ class BayesOpt:
     ) -> torch.Tensor:
         step, state = init_adam(top_exploration_points, self.acquisition_opt_config)
         for _ in range(self.num_acquisition_opt_iters):
-            print("Computing grad")
-            print(f"points_shape: {top_exploration_points.shape}")
             grads = acquisition_grad(top_exploration_points)
-            print(f"Grads shape: {grads.shape}")
-            top_exploration_points = step(top_exploration_points, state, -grads)
+            top_exploration_points, state = step(top_exploration_points, state, -grads)
 
         y_top_exploration = acquisition_fn(top_exploration_points)
 
-        # NOTE(pratik): check this topk is working as expected
         _, top_acquisition_points_idx = torch.topk(
-            y_top_exploration, k=num_top_acquisition_points, dim=0
+            y_top_exploration, k=num_top_acquisition_points, dim=1
         )
 
-        return top_exploration_points[top_acquisition_points_idx]
+        # Use advanced indexing to select the top points correctly
+        batch_indices = torch.arange(top_exploration_points.shape[0]).unsqueeze(1)
+        acquisition_points = top_exploration_points[
+            batch_indices, top_acquisition_points_idx
+        ]
+
+        # Reshape acquisition points so they are two-dimensional
+        acquisition_points = acquisition_points.reshape(
+            -1, acquisition_points.shape[-1]
+        )
+
+        return acquisition_points
 
     def _gp_sample_argmax(
         self,
@@ -258,7 +262,7 @@ class BayesOpt:
         alpha_samples: torch.Tensor,
         w_samples: torch.Tensor,
         ts_config: TSConfig,
-    ):
+    ) -> torch.Tensor:
         # We assume that the acquisition functions are already parallelized
         # over the number of acquisitions
         (
