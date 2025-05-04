@@ -5,6 +5,9 @@ import torch
 from torch.distributions import Chi2
 
 
+NU_MAP = {"matern12": 0.5, "matern32": 1.5, "matern52": 2.5}
+
+
 def _get_safe_lengthscale(lengthscale: float | torch.Tensor) -> torch.Tensor:
     if isinstance(lengthscale, torch.Tensor):
         return lengthscale.unsqueeze(-1)
@@ -25,39 +28,6 @@ def _random_features(
     return result
 
 
-def _rbf_random_features(
-    X: torch.Tensor,
-    kernel_config: KernelConfig,
-    weights: dict,
-) -> torch.Tensor:
-    safe_lengthscale = _get_safe_lengthscale(kernel_config.lengthscale)
-    scaled_weights = dict(Omega=weights["Omega"] / safe_lengthscale, B=weights["B"])
-    return _random_features(X, kernel_config.const_scaling, scaled_weights)
-
-
-def _matern_random_features(
-    X: torch.Tensor,
-    kernel_config: KernelConfig,
-    weights: dict,
-    nu: float,
-) -> torch.Tensor:
-    safe_lengthscale = _get_safe_lengthscale(kernel_config.lengthscale)
-    # Construction is using the multivariate t-distribution
-    # (Figure 1 in https://mlg.eng.cam.ac.uk/adrian/geometry.pdf
-    # -- this requires care, since there are typos in the expression).
-    # Sampling from the multivariate t-distribution can be performed
-    # using the normal and chi-square distributions.
-    # See https://en.wikipedia.org/wiki/Multivariate_t-distribution for details.
-    Y = weights["Omega"] / safe_lengthscale
-    df = torch.tensor([2.0 * nu], device=X.device, dtype=X.dtype)
-    # The sample method adds an extra dimension since df is a tensor,
-    # so we need to squeeze it out
-    u = Chi2(df).sample(sample_shape=(Y.shape[1],)).squeeze(-1)
-    Y_scaled = torch.sqrt(df) * Y / torch.sqrt(u)
-    scaled_weights = dict(Omega=Y_scaled, B=weights["B"])
-    return _random_features(X, kernel_config.const_scaling, scaled_weights)
-
-
 @dataclass(kw_only=True, frozen=False)
 class RFConfig:
     num_features: int
@@ -71,6 +41,7 @@ class RandomFeatures:
         kernel_type: str,
         rf_config: RFConfig,
     ):
+        self._check_kernel_type(kernel_type)
         self.kernel_config = kernel_config
         self.kernel_type = kernel_type
         self.rf_config = rf_config
@@ -85,6 +56,18 @@ class RandomFeatures:
         num_features = self.rf_config.num_features
         Omega = torch.randn(X.shape[1], num_features, device=X.device, dtype=X.dtype)
         B = 2 * torch.pi * torch.rand(num_features, device=X.device, dtype=X.dtype)
+
+        # Adjust Omega depending on the kernel
+        safe_lengthscale = _get_safe_lengthscale(self.kernel_config.lengthscale)
+        Omega /= safe_lengthscale
+        if self.kernel_type in ["matern12", "matern32", "matern52"]:
+            nu = NU_MAP[self.kernel_type]
+            df = torch.tensor([2.0 * nu], device=X.device, dtype=X.dtype)
+            # The sample method adds an extra dimension since df is a tensor,
+            # so we need to squeeze it out
+            u = Chi2(df).sample(sample_shape=(Omega.shape[1],)).squeeze(-1)
+            Omega = torch.sqrt(df) * Omega / torch.sqrt(u)
+
         return dict(Omega=Omega, B=B)
 
     def get_random_features(self, X: torch.Tensor):
@@ -97,17 +80,7 @@ class RandomFeatures:
                 self.fixed_weights = self._generate_weights(X)
             weights = self.fixed_weights
 
-        rf_kwargs = dict(X=X, kernel_config=self.kernel_config, weights=weights)
-        kernel_type = self.kernel_type
-
-        if kernel_type == "rbf":
-            return _rbf_random_features(**rf_kwargs)
-        elif kernel_type == "matern12":
-            return _matern_random_features(**rf_kwargs, nu=0.5)
-        elif kernel_type == "matern32":
-            return _matern_random_features(**rf_kwargs, nu=1.5)
-        elif kernel_type == "matern52":
-            return _matern_random_features(**rf_kwargs, nu=2.5)
+        return _random_features(X, self.kernel_config.constant_scaling, weights)
 
 
 def get_prior_samples(

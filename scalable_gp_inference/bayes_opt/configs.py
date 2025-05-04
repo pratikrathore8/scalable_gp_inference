@@ -27,7 +27,7 @@ class BayesOptConfig:
             )
 
 
-@dataclass(kw_only=True, freeze=True)
+@dataclass(kw_only=True, frozen=True)
 class TSConfig:
     # Number of iterations to run Thompson sampling in Bayesian optimization
     num_iters: int = 30

@@ -1,6 +1,6 @@
 from typing import Callable, NamedTuple
 
-from adam_config import AdamConfig
+from .adam_config import AdamConfig
 
 import torch
 

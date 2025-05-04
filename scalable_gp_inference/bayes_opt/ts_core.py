@@ -12,7 +12,7 @@ from .configs import BayesOptConfig, TSConfig
 from .adam_func import init_adam
 
 
-@dataclass(kwargs_only=True, frozen=False)
+@dataclass(kw_only=True, frozen=False)
 class ThompsonState:
     """
     Represents the state for Thompson sampling in Bayesian optimization.
@@ -61,10 +61,8 @@ def _eval_y(
 
 
 def _max_y(y: torch.Tensor):
-    y_max, y_argmax = torch.max(y)
-    y_max = y_max.cpu().item()
-    y_argmax = y_argmax[0].cpu().item()
-    return y_max, y_argmax
+    y_max, y_argmax = torch.max(y, dim=0)
+    return y_max.item(), y_argmax.item()
 
 
 class BayesOpt:
@@ -94,7 +92,9 @@ class BayesOpt:
         rf_obj = RandomFeatures(self.kernel_config, self.kernel_type, rf_config)
 
         # Form function that we will optimize via approximate posterior sampling
-        w_true = torch.randn(self.num_random_features)
+        w_true = torch.randn(
+            self.num_random_features, device=self.device, dtype=self.dtype
+        )
         y_init = _eval_y(X_init, rf_obj, w_true, self.noise_variance)
 
         # Find max value and index corresponding to max value
@@ -180,6 +180,9 @@ class BayesOpt:
         if w_samples.dim() > 2:
             w_samples = w_samples.squeeze()
 
+        print(f"alpha_samples: {alpha_samples.shape}")
+        print(f"w_samples: {w_samples.shape}")
+
         def _fn(x, alpha_sample, w_sample):
             # x: (D,)
             # alpha_sample: (n_train,)
@@ -197,7 +200,7 @@ class BayesOpt:
             out_shape: (n_samples, n_inputs)
             """
             return vmap(vmap(_fn, in_dims=(0, None, None)), in_dims=(None, 0, 0))(
-                x, alpha_samples, w_samples
+                x, alpha_samples.T, w_samples
             )
 
         def acquisition_fn(x):
@@ -367,7 +370,7 @@ class BayesOpt:
                 solver_config=krr_solver_config, W_init=torch.zeros_like(krr_linsys.B)
             )
             alpha_obj = alpha_all[:, 0]
-            alpha_samples = alpha_all[:, 0:]
+            alpha_samples = alpha_all[:, 1:]
 
             # Get the acquisition points using _gp_sample_argmax and update the state
             acquisition_points = self._gp_sample_argmax(
