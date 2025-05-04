@@ -17,6 +17,7 @@ class BayesOptConfig:
     num_init_samples: int = 50000
     # Acquisition function optimization configuration
     acquisition_opt_config: AdamConfig = AdamConfig(step_size=1e-3)
+    num_acquisition_opt_iters: int = 100
 
     def __post_init__(self):
         if self.min_val >= self.max_val:
@@ -44,7 +45,7 @@ class TSConfig:
     num_exp_samples: int = 50000
 
     # Number of points to keep after exploring (per exploration iteration)
-    num_top_exploration_points: int = 1
+    num_top_exp_points: int = 1
 
     # Number of points to keep per acquisition function
     # after all explorations (per full TS iteration)
@@ -52,3 +53,6 @@ class TSConfig:
 
     # Number of acquisitions from the posterior (per full TS iteration)
     num_acquisitions: int = 1000
+
+    # Method for acquisition (either random search or GP)
+    acquisition_method: str = "gp"

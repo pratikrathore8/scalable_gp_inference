@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from typing import Callable
 
 import torch
+from rlaopt.solvers import SolverConfig
 
 from ..kernel_linsys import KernelLinSys
 from ..random_features import RFConfig, RandomFeatures
@@ -76,6 +78,7 @@ class BayesOpt:
         self.num_random_features = bo_config.num_random_features
         self.num_init_samples = bo_config.num_init_samples
         self.acquisition_opt_config = bo_config.acquisition_opt_config
+        self.num_acquisition_opt_iters = bo_config.num_acquisition_opt_iters
 
         self.device = device
         self.dtype = dtype
@@ -104,7 +107,7 @@ class BayesOpt:
             fn_argmax=fn_argmax,
         )
 
-    def _get_x_init(self):
+    def _get_x_init(self) -> torch.Tensor:
         # Sample intializaiton points uniformly from the domain
         slope = self.max_val - self.min_val
         intercept = self.min_val
@@ -113,7 +116,7 @@ class BayesOpt:
         )
         return slope * x_init + intercept
 
-    def update_state(self, top_acquisition_points: torch.Tensor):
+    def _update_state(self, top_acquisition_points: torch.Tensor):
         # Evaluate objective at top acquisition points
         y_top = _eval_y(
             top_acquisition_points,
@@ -134,3 +137,90 @@ class BayesOpt:
         if y_top_max > self.ts_state.fn_max:
             self.ts_state.fn_max = y_top_max
             self.ts_state.fn_argmax = len(self.ts_state) + y_top_argmax
+
+    def _get_exploration_points(self, num_samples: int, method: str) -> torch.Tensor:
+        pass
+
+    def _get_acquisition_fn(
+        self,
+        alpha_obj: torch.Tensor,
+        alpha_samples: torch.Tensor,
+        w_samples: torch.Tensor,
+    ) -> tuple[Callable, Callable, Callable]:
+        pass
+
+    def _get_top_acquisition_points(
+        self,
+        top_exploration_points: torch.Tensor,
+        acquisition_fn: Callable,
+        acquisition_grad: Callable,
+        num_top_acquisition_points: int,
+    ) -> torch.Tensor:
+        pass
+
+    def _gp_sample_argmax(
+        self,
+        alpha_obj: torch.Tensor,
+        alpha_samples: torch.Tensor,
+        w_samples: torch.Tensor,
+        ts_config: TSConfig,
+    ):
+        # We assume that the acquisition functions are already parallelized
+        # over the number of acquisitions
+        (
+            acquisition_fn_sharex,
+            acquisition_fn,
+            acquisition_grad,
+        ) = self._get_acquisition_fn(alpha_obj, alpha_samples, w_samples)
+
+        # Getting top candidates for initializing optimizer for
+        # maximizing acquisition functions
+        # Initialize top_exploration_points as None
+        top_exploration_points = None
+
+        for _ in range(ts_config.num_exp_iters):
+            # First, sample a bunch of candidate points
+            exploration_points = self._get_exploration_points(
+                ts_config.num_exp_samples, method=ts_config.exp_method
+            )
+
+            # Second, evaluate the acquisition functions at these candidate points
+            y_exploration = acquisition_fn_sharex(exploration_points)
+
+            # Now, find the top candidate points based on
+            # the evaluated acquisition functions
+            _, top_exploration_points_idx = torch.topk(
+                y_exploration, k=ts_config.num_top_exp_points, dim=0
+            )
+
+            current_top_points = exploration_points[top_exploration_points_idx]
+
+            if top_exploration_points is None:
+                top_exploration_points = current_top_points
+            else:
+                # Concatenate to existing top points along dimension 1
+                top_exploration_points = torch.cat(
+                    [top_exploration_points, current_top_points], dim=1
+                )
+
+        # After the loop, top_exploration_points will have shape:
+        # (num_samples, num_top_exp_points * num_exp_iters, dimension)
+
+        # Use the top exploration points to get the top acquisition points
+        return self._get_top_acquisition_points(
+            top_exploration_points,
+            acquisition_fn,
+            acquisition_grad,
+            ts_config.num_top_acquisition_points,
+        )
+
+    def step(self, ts_config: TSConfig, krr_config: SolverConfig | None = None):
+        if ts_config.acquisition_method == "random_search":
+            # If we are acquiring radomly, get acquisition points
+            # for all acquisition functions in one go
+            acquisition_points = self._get_exploration_points(
+                ts_config.num_acquisitions * ts_config.num_top_acquisition_points,
+                method="uniform",
+            )
+            self._update_state(acquisition_points)
+        # else:
