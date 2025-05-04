@@ -88,7 +88,9 @@ class BayesOpt:
         X_init = self._sample_uniformly_from_domain(self.num_init_samples)
 
         # Setup random features
-        rf_config = RFConfig(num_features=self.num_random_features, regenerate=False)
+        rf_config = RFConfig(
+            num_features=self.num_random_features, regenerate=False, in_place_ops=False
+        )
         rf_obj = RandomFeatures(self.kernel_config, self.kernel_type, rf_config)
 
         # Form function that we will optimize via approximate posterior sampling
@@ -166,19 +168,13 @@ class BayesOpt:
         alpha_samples: torch.Tensor,
         w_samples: torch.Tensor,
     ) -> tuple[Callable, Callable, Callable]:
-
-        """Construct single acquisition function which is
-        vmapped over samples and inputs,
-        returning element-wise function values and gradients.
-
-        acquisition_fn_sharex:  (n_inputs, D) -> (n_samples, n_inputs)
-        acquisition_fn:   (n_samples, n_inputs, D) -> (n_samples, n_inputs)
-        acquisition_grad: (n_samples, n_inputs, D) -> (n_samples, n_inputs, D)
-        """
         if alpha_samples.dim() > 2:
             alpha_samples = alpha_samples.squeeze()
         if w_samples.dim() > 2:
             w_samples = w_samples.squeeze()
+
+        # Necessary to make vmap work
+        alpha_samples = alpha_samples.T
 
         print(f"alpha_samples: {alpha_samples.shape}")
         print(f"w_samples: {w_samples.shape}")
@@ -190,7 +186,11 @@ class BayesOpt:
             # return: ()
             L = self.ts_state.rf_obj.get_random_features(x)
             K = _get_kernel_linop(
-                x, self.ts_state.X, self.kernel_type, self.kernel_config
+                x.unsqueeze(0),
+                self.ts_state.X,
+                self.kernel_type,
+                self.kernel_config,
+                distributed=False,
             )
             return (L @ w_sample + K @ (alpha_obj - alpha_sample)).squeeze()
 
@@ -200,7 +200,7 @@ class BayesOpt:
             out_shape: (n_samples, n_inputs)
             """
             return vmap(vmap(_fn, in_dims=(0, None, None)), in_dims=(None, 0, 0))(
-                x, alpha_samples.T, w_samples
+                x, alpha_samples, w_samples
             )
 
         def acquisition_fn(x):
@@ -236,13 +236,16 @@ class BayesOpt:
         num_top_acquisition_points: int,
     ) -> torch.Tensor:
         step, state = init_adam(top_exploration_points, self.acquisition_opt_config)
-
         for _ in range(self.num_acquisition_opt_iters):
+            print("Computing grad")
+            print(f"points_shape: {top_exploration_points.shape}")
             grads = acquisition_grad(top_exploration_points)
+            print(f"Grads shape: {grads.shape}")
             top_exploration_points = step(top_exploration_points, state, -grads)
 
         y_top_exploration = acquisition_fn(top_exploration_points)
 
+        # NOTE(pratik): check this topk is working as expected
         _, top_acquisition_points_idx = torch.topk(
             y_top_exploration, k=num_top_acquisition_points, dim=0
         )
@@ -283,7 +286,7 @@ class BayesOpt:
             # Now, find the top candidate points based on
             # the evaluated acquisition functions
             _, top_exploration_points_idx = torch.topk(
-                y_exploration, k=ts_config.num_top_exp_points, dim=0
+                y_exploration, k=ts_config.num_top_exp_points, dim=1
             )
 
             current_top_points = exploration_points[top_exploration_points_idx]

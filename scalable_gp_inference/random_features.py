@@ -15,7 +15,7 @@ def _get_safe_lengthscale(lengthscale: float | torch.Tensor) -> torch.Tensor:
 
 
 def _random_features(
-    X: torch.Tensor, const_scaling: float, weights: dict
+    X: torch.Tensor, const_scaling: float, weights: dict, in_place_ops: bool
 ) -> torch.Tensor:
     scale_factor = (const_scaling * 2.0 / weights["Omega"].shape[1]) ** 0.5
 
@@ -23,7 +23,10 @@ def _random_features(
     # Equivalent to result = scale_factor * torch.cos(X @ Omega + B)
     result = X @ weights["Omega"]
     result.add_(weights["B"])
-    torch.cos(result, out=result)
+    if in_place_ops:
+        torch.cos(result, out=result)
+    else:
+        result = torch.cos(result)
     result.mul_(scale_factor)
     return result
 
@@ -32,6 +35,7 @@ def _random_features(
 class RFConfig:
     num_features: int
     regenerate: bool = True
+    in_place_ops: bool = True
 
 
 class RandomFeatures:
@@ -47,7 +51,7 @@ class RandomFeatures:
         self.rf_config = rf_config
         self.fixed_weights = None
 
-    def _check_kernel_type(kernel_type: str):
+    def _check_kernel_type(self, kernel_type: str):
         if kernel_type not in ["rbf", "matern12", "matern32", "matern52"]:
             raise ValueError(f"Unknown kernel type: {kernel_type}")
 
@@ -80,7 +84,9 @@ class RandomFeatures:
                 self.fixed_weights = self._generate_weights(X)
             weights = self.fixed_weights
 
-        return _random_features(X, self.kernel_config.constant_scaling, weights)
+        return _random_features(
+            X, self.kernel_config.const_scaling, weights, self.rf_config.in_place_ops
+        )
 
 
 def get_prior_samples(
