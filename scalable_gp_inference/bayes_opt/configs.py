@@ -51,8 +51,8 @@ class TSConfig:
     # after all explorations (per full TS iteration)
     num_top_acquisition_points: int = 1
 
-    # Number of acquisitions from the posterior (per full TS iteration)
-    num_acquisitions: int = 1000
+    # Number of acquisitions to sample from the posterior (per full TS iteration)
+    num_acquisition_fns: int = 1000
 
     # Method for acquisition (either random search or GP)
     acquisition_method: str = "gp"

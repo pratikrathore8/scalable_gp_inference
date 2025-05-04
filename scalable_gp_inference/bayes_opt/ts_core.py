@@ -5,7 +5,8 @@ import torch
 from rlaopt.solvers import SolverConfig
 
 from ..kernel_linsys import KernelLinSys
-from ..random_features import RFConfig, RandomFeatures
+from ..utils import _safe_unsqueeze
+from ..random_features import RFConfig, RandomFeatures, get_prior_samples
 from .configs import BayesOptConfig, TSConfig
 
 
@@ -155,7 +156,7 @@ class BayesOpt:
             X_combined = torch.clamp(X_combined, min=self.min_val, max=self.max_val)
             return X_combined
         else:
-            raise ValueError("method must be one of 'uniform' or 'nearby'")
+            raise ValueError("method must be one of 'uniform' or 'nearby'.")
 
     def _get_acquisition_fn(
         self,
@@ -254,14 +255,56 @@ class BayesOpt:
             self.ts_state.fn_max = y_top_max
             self.ts_state.fn_argmax = len(self.ts_state) + y_top_argmax
 
-    def step(self, ts_config: TSConfig, krr_config: SolverConfig | None = None):
+    def step(self, ts_config: TSConfig, krr_solver_config: SolverConfig | None = None):
         if ts_config.acquisition_method == "random_search":
             # If we are acquiring radomly, get acquisition points
             # for all acquisition functions in one go
             acquisition_points = self._get_exploration_points(
-                ts_config.num_acquisitions * ts_config.num_top_acquisition_points,
+                ts_config.num_acquisition_fns * ts_config.num_top_acquisition_points,
                 method="uniform",
                 exploration_proportion=None,
             )
-            self._update_state(acquisition_points)
-        # else:
+        elif ts_config.acquisition_method == "gp":
+            if krr_solver_config is None:
+                raise ValueError(
+                    "krr_solver_config cannot be None when acquisition method is 'gp'."
+                )
+
+            # Get prior samples, which we will use to sample from the posterior
+            prior_samples, w_samples = get_prior_samples(
+                X=self.ts_state.X,
+                rf_obj=self.ts_state.rf_obj,
+                noise_variance=self.noise_variance,
+                num_samples=ts_config.num_acquisition_fns,
+                return_feature_weights=True,
+            )
+
+            # Form KRR linear system which we use to solve
+            # for alpha_obj and alpha_samples
+            krr_linsys = KernelLinSys(
+                X=self.ts_state.X,
+                B=torch.cat(
+                    (_safe_unsqueeze(self.ts_state.y), _safe_unsqueeze(prior_samples)),
+                    dim=1,
+                ),
+                reg=self.noise_variance,
+                kernel_type=self.kernel_type,
+                kernel_config=self.kernel_config,
+                use_full_kernel=False,
+            )
+            alpha_all, _ = krr_linsys.solve(
+                solver_config=krr_solver_config, W_init=torch.zeros_like(krr_linsys.B)
+            )
+            alpha_obj = alpha_all[:, 0]
+            alpha_samples = alpha_all[:, 0:]
+
+            # Get the acquisition points using _gp_sample_argmax and update the state
+            acquisition_points = self._gp_sample_argmax(
+                alpha_obj, alpha_samples, w_samples, ts_config
+            )
+        else:
+            raise ValueError(
+                "acquisition_method must be one of 'random_search' or 'gp'."
+            )
+
+        self._update_state(acquisition_points)
