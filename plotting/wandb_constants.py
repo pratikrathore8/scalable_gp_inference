@@ -18,9 +18,9 @@ DATASETS = ["ESR2",
 
 
 METRIC_PATHS = {
-    "STEP": "_step",
-    "CUM_TIME": "cum_time",
-    "ITER_TIME": "iter_time",
+    # "STEP": "_step",
+    # "CUM_TIME": "cum_time",
+    # "ITER_TIME": "iter_time",
 
     "TEST_RMSE": "metrics.callback.test_rmse",
     "TEST_R2": "metrics.callback.test_r2",
@@ -41,6 +41,14 @@ CONFIG_KEYS = {
     "NUM_SAMPLES": "num_posterior_samples",
     "BLOCK_SIZE": "solver_config.blk_sz",
     "MAX_ITERS": "solver_config.max_iters"
+}
+
+STRATEGY_MAP = {
+    "sap": "best",
+    "pcg": "best",
+    "sdd": "best",
+    "mimosa": "best",
+    "falkon": "best"
 }
 
 SOLVERS = ["sap", "nsap", "pcg", "sdd", "mimosa", "falkon"]
