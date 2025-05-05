@@ -32,9 +32,7 @@ def get_run_history(
         x_axis: str = "step",
         include_config: bool = True
 ) -> pd.DataFrame:
-    """
-    Get history using pre-fetched run object
-    """
+    """Get history using pre-fetched run object"""
     try:
         required_keys = list(set(metrics + ["_step", "cum_time", "iter_time"]))
         history = run.scan_history(keys=required_keys)
@@ -43,13 +41,23 @@ def get_run_history(
 
         if x_axis == "time":
             df["x_value"] = df["cum_time"]
+
         elif x_axis == "datapasses":
             config = run.config
-            n = config.get("ntr", 1)
-            m = config.get("rf_config", {}).get("num_features", 0)
-            eval_freq = config.get("eval_freq", 1)
-            scaling = (2 * m * eval_freq) / n if m else eval_freq / n
-            df["x_value"] = df["_step"] * scaling
+            solver = config.get(CONFIG_KEYS["SOLVER"], "").lower()
+
+            if solver in ["sap", "sdd"]:
+                opt_num_blocks = config.get("opt_num_blocks", 1)
+                df["x_value"] = df["_step"] / opt_num_blocks
+            elif solver == "pcg":
+                df["x_value"] = df["_step"]
+            else:
+                n = config.get("ntr", 1)
+                m = config.get("rf_config", {}).get("num_features", 0)
+                eval_freq = config.get("eval_freq", 1)
+                scaling = (2 * m * eval_freq) / n if m else eval_freq / n
+                df["x_value"] = df["_step"] * scaling
+
         else:
             df["x_value"] = df["_step"]
 
@@ -67,7 +75,7 @@ def get_run_history(
 def organize_runs_data(
         runs: Iterable[wandb.apis.public.Run],
         y_metrics: List[str],
-        x_axis: str = "step"
+        x_axis: str
 ) -> Dict[str, pd.DataFrame]:
     data = {}
     for run in runs:
@@ -76,8 +84,12 @@ def organize_runs_data(
             if not df.empty:
                 df["run_id"] = run.id
                 df["run_name"] = run.name
-                df[CONFIG_KEYS["SOLVER"]] = run.config.get(
-                    CONFIG_KEYS["SOLVER"], "unknown")
+                solver = run.config.get(CONFIG_KEYS["SOLVER"], "unknown")
+                df[CONFIG_KEYS["SOLVER"]] = solver
+                if solver == "sap":
+                    solver_config = run.config.get("solver_config", {})
+                    df[
+                        "sap_precond"] = "Nystrom" if "precond_config" in solver_config else "Identity"
                 df[CONFIG_KEYS["DATASET"]] = run.config.get(
                     CONFIG_KEYS["DATASET"], "unknown")
                 data[run.id] = df
@@ -148,48 +160,51 @@ def choose_runs(
     solver_groups = defaultdict(list)
     for run in runs:
         if solver := run.config.get(CONFIG_KEYS["SOLVER"]):
-            solver_groups[solver].append(run)
+            if solver == "sap":
+                solver_config = run.config.get("solver_config", {})
+                precond_type = "Nystrom" if "precond_config" in solver_config else "Identity"
+                solver_groups[(solver, precond_type)].append(run)
+            else:
+                solver_groups[solver].append(run)
 
     selected = []
 
     for solver, s_runs in solver_groups.items():
-        if solver in strategy_map:
+        if isinstance(solver, tuple) and solver[0] == "sap":
+            solver_name, precond_type = solver
+            strategy = strategy_map.get(solver_name, None)
+            label = f"{solver_name} ({precond_type})"
+            print(
+                f"Applying '{strategy}' selection for {label} ({len(s_runs)} runs)")
+        else:
             strategy = strategy_map[solver]
             print(
                 f"Applying '{strategy}' selection for {solver} ({len(s_runs)} runs)")
 
-            if strategy == "latest":
-                selected.append(max(s_runs, key=lambda r: r.created_at))
+        if strategy == "latest":
+            selected.append(max(s_runs, key=lambda r: r.created_at))
 
-            elif strategy == "best":
-                metrics = []
-                for run in s_runs:
-                    try:
-                        df = get_run_history(run, [metric])
-                        if metric_agg == "last":
-                            val = df[metric].iloc[-1]
-                        elif metric_agg == "min":
-                            val = df[metric].min()
-                        elif metric_agg == "max":
-                            val = df[metric].max()
-                        metrics.append((val, run))
-                    except Exception as e:
-                        print(f"Skipping run {run.id}: {str(e)}")
-                        continue
+        elif strategy == "best":
+            metrics = []
+            for run in s_runs:
+                try:
+                    df = get_run_history(run, [metric])
+                    if metric_agg == "last":
+                        val = df[metric].iloc[-1]
+                    elif metric_agg == "min":
+                        val = df[metric].min()
+                    elif metric_agg == "max":
+                        val = df[metric].max()
+                    metrics.append((val, run))
+                except Exception as e:
+                    print(f"Skipping run {run.id}: {str(e)}")
+                    continue
 
-                if metrics:
-                    reverse = metric in {METRIC_PATHS["TEST_RMSE"],
-                                         METRIC_PATHS["POSTERIOR_NLL"]}
-                    best_run = \
-                    (min if not reverse else max)(metrics, key=lambda x: x[0])[
-                        1]
-                    selected.append(best_run)
-
-        else:
-            print(
-                f"Keeping all {len(s_runs)} runs for unspecified solver '{solver}'")
-            selected.extend(s_runs)
+            if metrics:
+                reverse = metric in {METRIC_PATHS["TEST_RMSE"],
+                                     METRIC_PATHS["POSTERIOR_NLL"],
+                                     METRIC_PATHS["POSTERIOR_MEAN_NLL"]}
+                best_run = (min if not reverse else max)(metrics, key=lambda x: x[0])[1]
+                selected.append(best_run)
 
     return selected
-
-

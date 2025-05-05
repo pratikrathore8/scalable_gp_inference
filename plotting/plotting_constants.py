@@ -2,12 +2,11 @@ import matplotlib.cm as cm
 import numpy as np
 from compressed_root_norm import CompressedRootNorm
 
-USE_LATEX: bool = False
+USE_LATEX: bool = True
 FONTSIZE:  int = 14
 EXTENSION: str = "pdf"
 BASE_SAVE_DIR: str = "./plots"
 
-X_AXIS: str = "time"
 
 HPARAMS_TO_LABEL = {
     "sdd": ["precond", "r", "sampling_method"],
@@ -34,6 +33,8 @@ LEGEND_SPECS = {
 OPT_COLORS = {
     "sdd": "#4B0082",
     "sap": "#FF4500",
+    "sap_nystrom": "#FF4500",
+    "sap_identity": "#8B0000",
     "nsap": "#2E8B57",
     "pcg": "#4169E1",
     "eigenpro2": "tab:pink",
@@ -48,6 +49,10 @@ NORM = CompressedRootNorm(vmin=RANK_MIN, vmax=RANK_MAX, root=3)
 DUMMY_PLOTTING_RANK = 100
 
 PRECOND_MARKERS = {
+    "sap": {
+        "nystrom": "o",
+        "identity": "x",
+    },
     "nystrom": {"damped": "o", "regularization": "x"},
     "partial_cholesky": {"greedy": "D", "rpc": "v"},
     "falkon": {
@@ -68,6 +73,7 @@ SAMPLING_LINESTYLES = {
 
 TOT_MARKERS: int = 10
 MARKERSIZE: int = 8
+
 
 METRIC_AX_PLOT_FNS: dict[str, str] = {
     "abs_res":                       "semilogy",

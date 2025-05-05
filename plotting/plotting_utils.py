@@ -6,6 +6,7 @@ from matplotlib import rcParams
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 import numpy as np
+import warnings, shutil
 
 from wandb_constants import (
     METRIC_PATHS,
@@ -28,7 +29,14 @@ from plotting_constants import (
     SZ_ROW,
     X_AXIS_LABELS,
     NAN_REPLACEMENT,
+    PRECOND_MARKERS,
+    TOT_MARKERS,
+    MARKERSIZE
 )
+
+if USE_LATEX and not shutil.which("latex"):
+    warnings.warn("LaTeX not found – falling back to Matplotlib's mathtext.")
+    USE_LATEX = False
 
 rcParams.update({
     "font.size": FONTSIZE,
@@ -65,14 +73,32 @@ class Plotter:
                 f"Available columns: {df.columns.tolist()}"
             )
 
+        color_key = df[CONFIG_KEYS["SOLVER"]].iloc[0]
+        precond_type = df.get("sap_precond", pd.Series([""])).iloc[
+            0].lower() if color_key == "sap" else ""
+
+        if color_key == "sap" and precond_type:
+            color = OPT_COLORS[f"sap_{precond_type}"]
+            marker = PRECOND_MARKERS["sap"][precond_type]
+        else:
+            color = OPT_COLORS.get(color_key, "k")
+            marker = None
+
         hparams = HPARAM_LABELS.get(solver, [])
         parts = [OPT_LABELS.get(solver, solver)]
+
+        if solver == "sap" and "sap_precond" in df.columns:
+            parts.append(f"({df['sap_precond'].iloc[0]})")
 
         for hp in hparams:
             if hp in df.columns:
                 parts.append(f"{hp}={df[hp].iloc[0]}")
 
-        return " ".join(parts)
+        return {
+            "label": " ".join(parts),
+            "color": color,
+            "marker": marker
+        }
 
     def _name_y_axis(self, metric_path: str) -> str:
         """Convert metric path to clean label"""
@@ -87,7 +113,7 @@ class Plotter:
     def plot_single_metric(
             self,
             y_metric: str,
-            x_axis: str = X_AXIS_OPTIONS["TIME"],
+            x_axis: str,
             log_y: bool = True,
             title: Optional[str] = None,
             save_path: Optional[Path] = None,
@@ -96,12 +122,14 @@ class Plotter:
         fig, ax = plt.subplots(figsize=(SZ_COL, SZ_ROW))
 
         for run_id, df in self.runs_data.items():
-            solver_label = self._get_solver_config(df)
+            config = self._get_solver_config(df)
             color = OPT_COLORS.get(df[CONFIG_KEYS["SOLVER"]].iloc[0], "k")
 
             plot_fn = getattr(ax, METRIC_AX_PLOT_FNS.get(y_metric, "plot"))
-            plot_fn(df["x_value"], df[y_metric], label=solver_label,
-                    color=color)
+            plot_fn(df["x_value"], df[y_metric], label=config["label"],
+                    color=config["color"],
+                    marker=config["marker"], markersize=MARKERSIZE,
+                    markevery=TOT_MARKERS)
 
         ax.set_xlabel(X_AXIS_LABELS.get(x_axis, x_axis))
         ax.set_ylabel(self._name_y_axis(y_metric))
@@ -121,7 +149,7 @@ class Plotter:
     def plot_metric_grid(
             self,
             y_metrics: Sequence[str],
-            x_axis: str = X_AXIS_OPTIONS["TIME"],
+            x_axis: str,
             log_y: bool = True,
             title: Optional[str] = None,
             save_path: Optional[Path] = None,
@@ -141,12 +169,14 @@ class Plotter:
         for idx, y_metric in enumerate(y_metrics):
             ax = axes[idx]
             for run_id, df in self.runs_data.items():
-                solver_label = self._get_solver_config(df)
+                config = self._get_solver_config(df)
                 color = OPT_COLORS.get(df[CONFIG_KEYS["SOLVER"]].iloc[0], "k")
 
                 plot_fn = getattr(ax, METRIC_AX_PLOT_FNS.get(y_metric, "plot"))
-                plot_fn(df["x_value"], df[y_metric], label=solver_label,
-                        color=color)
+                plot_fn(df["x_value"], df[y_metric], label=config["label"],
+                        color=config["color"],
+                        marker=config["marker"], markersize=MARKERSIZE,
+                        markevery=TOT_MARKERS)
 
             ax.set_xlabel(X_AXIS_LABELS.get(x_axis, x_axis))
             ax.set_ylabel(self._name_y_axis(y_metric))
@@ -178,3 +208,4 @@ class Plotter:
             plt.close(fig)
         else:
             plt.show()
+
