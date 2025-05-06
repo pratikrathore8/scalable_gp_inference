@@ -31,15 +31,15 @@ LEGEND_SPECS = {
 }
 
 OPT_COLORS = {
-    "sdd": "#4B0082",
+    "sdd": "black",
     "sap": "#FF4500",
     "sap_nystrom": "#FF4500",
     "sap_identity": "#8B0000",
-    "nsap": "#2E8B57",
+    "nsap": "#4B0082",
     "pcg": "#4169E1",
     "eigenpro2": "tab:pink",
     "eigenpro3": "tab:brown",
-    "falkon": "black",
+    "falkon": "#2E8B57",
     "mimosa": "#778899",
 }
 
