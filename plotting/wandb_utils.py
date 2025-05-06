@@ -170,14 +170,14 @@ def choose_runs(
     selected = []
 
     for solver, s_runs in solver_groups.items():
-        if isinstance(solver, tuple) and solver[0] == "sap":
+        if isinstance(solver, tuple):
             solver_name, precond_type = solver
             strategy = strategy_map.get(solver_name, None)
             label = f"{solver_name} ({precond_type})"
             print(
                 f"Applying '{strategy}' selection for {label} ({len(s_runs)} runs)")
         else:
-            strategy = strategy_map[solver]
+            strategy = strategy_map.get(solver, None)
             print(
                 f"Applying '{strategy}' selection for {solver} ({len(s_runs)} runs)")
 
@@ -189,22 +189,39 @@ def choose_runs(
             for run in s_runs:
                 try:
                     df = get_run_history(run, [metric])
+                    if df.empty:
+                        print(f"Skipping run {run.id} - empty dataframe")
+                        continue
+
                     if metric_agg == "last":
                         val = df[metric].iloc[-1]
                     elif metric_agg == "min":
                         val = df[metric].min()
                     elif metric_agg == "max":
                         val = df[metric].max()
+                    else:
+                        val = df[metric].iloc[-1]
+
+                    if not np.isfinite(val):
+                        print(
+                            f"Skipping run {run.id} - invalid metric value: {val}")
+                        continue
+
                     metrics.append((val, run))
+                    # print(f"Run {run.id[:8]} metric {metric}: {val} (agg: {metric_agg})")
                 except Exception as e:
                     print(f"Skipping run {run.id}: {str(e)}")
                     continue
 
             if metrics:
-                reverse = metric in {METRIC_PATHS["TEST_RMSE"],
-                                     METRIC_PATHS["POSTERIOR_NLL"],
-                                     METRIC_PATHS["POSTERIOR_MEAN_NLL"]}
-                best_run = (min if not reverse else max)(metrics, key=lambda x: x[0])[1]
+                if metric in {METRIC_PATHS["TEST_RMSE"],
+                              METRIC_PATHS["POSTERIOR_NLL"],
+                              METRIC_PATHS["POSTERIOR_MEAN_NLL"]}:
+                    best_run = min(metrics, key=lambda x: x[0])[1]
+                else:
+                    best_run = max(metrics, key=lambda x: x[0])[1]
+
+                # print(f"Selected best run {best_run.id[:8]} with metric value: {min(metrics, key=lambda x: x[0])[0]}")
                 selected.append(best_run)
 
     return selected
