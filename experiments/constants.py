@@ -4,7 +4,21 @@ from experiments.data_processing.load_torch import LOADERS
 
 # For data loading
 DATA_NAMES = list(LOADERS.keys())
-DATA_SPLIT_PROPORTION = 0.1
+DATA_SPLIT_PROPORTION_MAP = {
+    "ESR2": 0.1,
+    "F2": 0.1,
+    "KIT": 0.1,
+    "PARP1": 0.1,
+    "PGR": 0.1,
+    "acsincome": 0.1,
+    "yolanda": 0.1,
+    "malonaldehyde": 0.1,
+    "benzene": 0.1,
+    "taxi": 0.01,
+    "3droad": 0.1,
+    "song": 0.1,
+    "houseelec": 0.1,
+}
 DATA_SPLIT_SHUFFLE = True
 DATA_STANDARDIZE = True
 
@@ -20,19 +34,19 @@ GP_TRAIN_SUBSAMPLE_SIZE = 10000
 
 # Experiment parameters
 EXPERIMENT_DATA_KERNEL_MAP = {
-    "ESR2": "tanimoto",
-    "F2": "tanimoto",
-    "KIT": "tanimoto",
-    "PARP1": "tanimoto",
-    "PGR": "tanimoto",
-    "acsincome": "rbf",
-    "yolanda": "rbf",
-    "malonaldehyde": "matern52",
-    "benzene": "matern52",
+    # "ESR2": "tanimoto",
+    # "F2": "tanimoto",
+    # "KIT": "tanimoto",
+    # "PARP1": "tanimoto",
+    # "PGR": "tanimoto",
+    # "acsincome": "rbf",
+    # "yolanda": "rbf",
+    # "malonaldehyde": "matern52",
+    # "benzene": "matern52",
     "taxi": "rbf",
-    "3droad": "matern32",
-    "song": "matern32",
-    "houseelec": "matern32",
+    # "3droad": "matern32",
+    # "song": "matern32",
+    # "houseelec": "matern32",
 }
 EXPERIMENT_SEEDS = [0, 1, 2, 3, 4]
 EXPERIMENT_KERNELS = list(
@@ -129,4 +143,9 @@ LOGGING_EVAL_FREQ_MAP = {
     "pcg": 1,
     "sap": 100,
     "sdd": 100,
+}
+LOGGING_EVAL_FREQ_MAP_TAXI = {
+    "pcg": 1,
+    "sap": 200,
+    "sdd": 200,
 }

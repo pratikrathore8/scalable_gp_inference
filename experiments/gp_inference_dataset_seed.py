@@ -2,7 +2,7 @@ import subprocess
 import argparse
 
 from experiments.constants import (
-    DATA_SPLIT_PROPORTION,
+    DATA_SPLIT_PROPORTION_MAP,
     DATA_SPLIT_SHUFFLE,
     DATA_STANDARDIZE,
     EXPERIMENT_DATA_KERNEL_MAP,
@@ -22,6 +22,7 @@ from experiments.constants import (
     OPT_NUM_BLOCKS_MAP,
     LOGGING_USE_WANDB,
     LOGGING_EVAL_FREQ_MAP,
+    LOGGING_EVAL_FREQ_MAP_TAXI,
 )
 
 
@@ -66,10 +67,10 @@ def _get_precond_extensions(preconditioners):
     return extension_list
 
 
-def _get_pcg_extensions():
+def _get_pcg_extensions(eval_freq_map):
     base_extension = [
         "--eval_freq",
-        str(LOGGING_EVAL_FREQ_MAP["pcg"]),
+        str(eval_freq_map["pcg"]),
         "--opt_type",
         "pcg",
     ]
@@ -85,10 +86,10 @@ def _get_pcg_extensions():
     return extensions
 
 
-def _get_sap_extensions(dataset):
+def _get_sap_extensions(dataset, eval_freq_map):
     base_extension = [
         "--eval_freq",
-        str(LOGGING_EVAL_FREQ_MAP["sap"]),
+        str(eval_freq_map["sap"]),
         "--opt_type",
         "sap",
         "--opt_num_blocks",
@@ -106,10 +107,10 @@ def _get_sap_extensions(dataset):
     return extensions
 
 
-def _get_sdd_extensions(dataset):
+def _get_sdd_extensions(dataset, eval_freq_map):
     base_extension = [
         "--eval_freq",
-        str(LOGGING_EVAL_FREQ_MAP["sdd"]),
+        str(eval_freq_map["sdd"]),
         "--opt_type",
         "sdd",
         "--opt_num_blocks",
@@ -145,7 +146,7 @@ def _get_base_command(args):
     cmd.extend(
         [
             "--split_proportion",
-            str(DATA_SPLIT_PROPORTION),
+            str(DATA_SPLIT_PROPORTION_MAP[args.dataset]),
         ]
     )
 
@@ -192,15 +193,21 @@ def main():
     # Get the base command
     base_cmd = _get_base_command(args)
 
+    # Get the appropriate map for logging eval frequency
+    if args.dataset == "taxi":
+        eval_freq_map = LOGGING_EVAL_FREQ_MAP_TAXI
+    else:
+        eval_freq_map = LOGGING_EVAL_FREQ_MAP
+
     # Get the extensions for all the optimizers
     opt_extensions = {}
     for opt_type in OPT_TYPES:
         if opt_type == "pcg":
-            opt_extensions[opt_type] = _get_pcg_extensions()
+            opt_extensions[opt_type] = _get_pcg_extensions(eval_freq_map)
         elif opt_type == "sap":
-            opt_extensions[opt_type] = _get_sap_extensions(args.dataset)
+            opt_extensions[opt_type] = _get_sap_extensions(args.dataset, eval_freq_map)
         elif opt_type == "sdd":
-            opt_extensions[opt_type] = _get_sdd_extensions(args.dataset)
+            opt_extensions[opt_type] = _get_sdd_extensions(args.dataset, eval_freq_map)
         else:
             raise ValueError(f"Unknown optimizer type: {opt_type}")
 
