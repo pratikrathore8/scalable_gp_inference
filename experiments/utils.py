@@ -183,7 +183,7 @@ def get_solver_config(
     return solver_config
 
 
-def _get_gp_hparams_save_file_dir(
+def get_gp_hparams_save_file_dir(
     dataset_name: str,
     kernel_type: str,
     seed: int,
@@ -224,7 +224,7 @@ def _get_saved_gp_hparams(
     Returns:
         dict: The loaded GP hyperparameters.
     """
-    save_dir = _get_gp_hparams_save_file_dir(dataset_name, kernel_type, seed)
+    save_dir = get_gp_hparams_save_file_dir(dataset_name, kernel_type, seed)
     save_file = os.path.join(save_dir, GP_TRAIN_SAVE_FILE_NAME)
     if not os.path.exists(save_file):
         raise FileNotFoundError(f"GP hyperparameters file not found: {save_file}")

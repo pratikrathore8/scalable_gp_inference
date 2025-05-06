@@ -2,7 +2,7 @@ import subprocess
 import argparse
 
 from experiments.constants import (
-    DATA_SPLIT_PROPORTION,
+    DATA_SPLIT_PROPORTION_MAP,
     DATA_SPLIT_SHUFFLE,
     DATA_STANDARDIZE,
     GP_TRAIN_DTYPE,
@@ -37,7 +37,7 @@ def main():
                 "--device",
                 str(args.device),
                 "--split_proportion",
-                str(DATA_SPLIT_PROPORTION),
+                str(DATA_SPLIT_PROPORTION_MAP[dataset]),
                 "--split_shuffle" if DATA_SPLIT_SHUFFLE else "",
                 "--standardize" if DATA_STANDARDIZE else "",
                 "--dtype",
