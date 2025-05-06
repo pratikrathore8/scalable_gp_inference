@@ -65,7 +65,7 @@ HPARAM_LABELS = {
 }
 
 X_AXIS_OPTIONS = {
-    "STEP": "step",
+    "STEP": "iters",
     "TIME": "time",
     "DATAPASSES": "datapasses"
 }
