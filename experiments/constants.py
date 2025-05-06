@@ -34,19 +34,19 @@ GP_TRAIN_SUBSAMPLE_SIZE = 10000
 
 # Experiment parameters
 EXPERIMENT_DATA_KERNEL_MAP = {
-    # "ESR2": "tanimoto",
-    # "F2": "tanimoto",
-    # "KIT": "tanimoto",
-    # "PARP1": "tanimoto",
-    # "PGR": "tanimoto",
-    # "acsincome": "rbf",
-    # "yolanda": "rbf",
-    # "malonaldehyde": "matern52",
-    # "benzene": "matern52",
+    "ESR2": "tanimoto",
+    "F2": "tanimoto",
+    "KIT": "tanimoto",
+    "PARP1": "tanimoto",
+    "PGR": "tanimoto",
+    "acsincome": "rbf",
+    "yolanda": "rbf",
+    "malonaldehyde": "matern52",
+    "benzene": "matern52",
     "taxi": "rbf",
-    # "3droad": "matern32",
-    # "song": "matern32",
-    # "houseelec": "matern32",
+    "3droad": "matern32",
+    "song": "matern32",
+    "houseelec": "matern32",
 }
 EXPERIMENT_SEEDS = [0, 1, 2, 3, 4]
 EXPERIMENT_KERNELS = list(
