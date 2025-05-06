@@ -5,6 +5,8 @@ To set up the environment, run the following command in a `python` virtual envir
 pip install -e .
 ```
 
+Please make sure that `pykeops` and `keopscore` are both installed with version `2.2.3`. We have found version `2.3` to be too slow for some of our experiments (particularly Bayesian optimization).
+
 If you are developing the code, you should also run
 ```bash
 pre-commit install
