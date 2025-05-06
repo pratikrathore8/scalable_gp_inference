@@ -29,6 +29,6 @@ setup(
     python_requires=">=3.10",
     install_requires=parse_requirements("requirements.txt")
     + [
-        "rlaopt @ git+https://github.com/udellgroup/rlaopt.git@e6c67dc25a2f272aa3c433dd333e86e7eab08059"  # noqa: E501
+        "rlaopt @ git+https://github.com/udellgroup/rlaopt.git@d7a09e4138fdf953aa1aeafa5b361ee738ccebdc"  # noqa: E501
     ],
 )
