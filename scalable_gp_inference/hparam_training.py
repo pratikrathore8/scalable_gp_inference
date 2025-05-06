@@ -9,6 +9,9 @@ from gpytorch.models import ExactGP
 from gpytorch.kernels import ScaleKernel, RBFKernel, MaternKernel
 
 
+SUBSAMPLE_BATCH_SIZE = 5 * 10**7  # Adjust based on available memory
+
+
 class _ExactGPModel(ExactGP):
     def __init__(self, train_x, train_y, likelihood, base_kernel):
         super().__init__(train_x, train_y, likelihood)
@@ -188,12 +191,44 @@ def _get_subsample_centroid(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     # Randomly sample a point from the training set
     idx = torch.randint(0, Xtr.shape[0], (1,))
-    centroid = Xtr[idx]
+    centroid = Xtr[idx].view(1, -1)
 
-    # Find the subset of points closest to the centroid
-    distances = torch.cdist(Xtr, centroid.view(1, -1)).squeeze(-1)
-    _, indices = torch.topk(distances, k=subsample_size, largest=False, sorted=False)
-    return Xtr[indices], ytr[indices]
+    # Process in batches and maintain the k closest points seen so far
+    batch_size = SUBSAMPLE_BATCH_SIZE  # Adjust based on available memory
+    num_batches = (Xtr.shape[0] + batch_size - 1) // batch_size
+
+    # Initialize with a very large finite value
+    max_value = torch.finfo(Xtr.dtype).max
+    closest_distances = torch.full(
+        (subsample_size,), max_value, device=Xtr.device, dtype=Xtr.dtype
+    )
+    closest_indices = torch.zeros(subsample_size, dtype=torch.long, device=Xtr.device)
+
+    for i in range(num_batches):
+        start_idx = i * batch_size
+        end_idx = min((i + 1) * batch_size, Xtr.shape[0])
+
+        # Compute distances for this batch using cdist
+        batch_distances = torch.cdist(Xtr[start_idx:end_idx], centroid).squeeze(-1)
+
+        # Add batch offset to make indices global
+        batch_indices = torch.arange(start_idx, end_idx, device=Xtr.device)
+
+        # Combine current batch with the closest points found so far
+        combined_distances = torch.cat([closest_distances, batch_distances])
+        combined_indices = torch.cat([closest_indices, batch_indices])
+
+        # Get the top-k closest points from the combined set
+        topk_dists, topk_idx = torch.topk(
+            combined_distances, k=subsample_size, largest=False, sorted=False
+        )
+
+        # Update our running closest points
+        closest_distances = topk_dists
+        closest_indices = combined_indices[topk_idx]
+
+    # Return the final subset
+    return Xtr[closest_indices], ytr[closest_indices]
 
 
 def train_exact_gp_subsampled(

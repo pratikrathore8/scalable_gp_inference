@@ -4,7 +4,21 @@ from experiments.data_processing.load_torch import LOADERS
 
 # For data loading
 DATA_NAMES = list(LOADERS.keys())
-DATA_SPLIT_PROPORTION = 0.1
+DATA_SPLIT_PROPORTION_MAP = {
+    "ESR2": 0.1,
+    "F2": 0.1,
+    "KIT": 0.1,
+    "PARP1": 0.1,
+    "PGR": 0.1,
+    "acsincome": 0.1,
+    "yolanda": 0.1,
+    "malonaldehyde": 0.1,
+    "benzene": 0.1,
+    "taxi": 0.01,
+    "3droad": 0.1,
+    "song": 0.1,
+    "houseelec": 0.1,
+}
 DATA_SPLIT_SHUFFLE = True
 DATA_STANDARDIZE = True
 
@@ -101,7 +115,7 @@ OPT_MAX_PASSES_MAP = {
     "yolanda": 50,
     "malonaldehyde": 50,
     "benzene": 50,
-    "taxi": 2,
+    "taxi": 1,
     "3droad": 50,
     "song": 50,
     "houseelec": 20,
@@ -129,4 +143,9 @@ LOGGING_EVAL_FREQ_MAP = {
     "pcg": 1,
     "sap": 100,
     "sdd": 100,
+}
+LOGGING_EVAL_FREQ_MAP_TAXI = {
+    "pcg": 1,
+    "sap": 200,
+    "sdd": 200,
 }
