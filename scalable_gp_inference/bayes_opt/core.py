@@ -236,8 +236,10 @@ class BayesOpt:
         acquisition_grad: Callable,
         num_top_acquisition_points: int,
     ) -> torch.Tensor:
+        print("getting top acquisition points")
         step, state = init_adam(top_exploration_points, self.acquisition_opt_config)
-        for _ in range(self.num_acquisition_opt_iters):
+        for i in range(self.num_acquisition_opt_iters):
+            print(f"Iteration {i} of Adam")
             grads = acquisition_grad(top_exploration_points)
             top_exploration_points, state = step(top_exploration_points, state, -grads)
 
@@ -274,6 +276,7 @@ class BayesOpt:
             acquisition_fn,
             acquisition_grad,
         ) = self._get_acquisition_fn(alpha_obj, alpha_samples, w_samples)
+        print("got acquisition functions")
 
         # Getting top candidates for initializing optimizer for
         # maximizing acquisition functions
@@ -306,6 +309,7 @@ class BayesOpt:
                 top_exploration_points = torch.cat(
                     [top_exploration_points, current_top_points], dim=1
                 )
+        print("got top exploration points")
 
         # After the loop, top_exploration_points will have shape:
         # (num_samples, num_top_exp_points * num_exp_iters, dimension)
@@ -368,6 +372,7 @@ class BayesOpt:
 
             # Form KRR linear system which we use to solve
             # for alpha_obj and alpha_samples
+            print("forming linear system")
             krr_linsys = KernelLinSys(
                 X=self._bo_state.X,
                 B=torch.cat(
@@ -379,9 +384,11 @@ class BayesOpt:
                 kernel_config=self.kernel_config,
                 use_full_kernel=True,
             )
+            print("solving linear system")
             alpha_all, _ = krr_linsys.solve(
                 solver_config=krr_solver_config, W_init=torch.zeros_like(krr_linsys.B)
             )
+            print("solved linear system")
 
             # final_log_idx = list(log.keys())[-1]
             # print(log[final_log_idx]["metrics"]["internal_metrics"]["rel_res"])
@@ -390,9 +397,11 @@ class BayesOpt:
             alpha_samples = alpha_all[:, 1:]
 
             # Get the acquisition points using _gp_sample_argmax and update the state
+            print("getting acquisition points")
             acquisition_points = self._gp_sample_argmax(
                 alpha_obj, alpha_samples, w_samples, ts_config
             )
+            print("got acquisition points")
         else:
             raise ValueError(
                 "acquisition_method must be one of 'random_search' or 'gp'."
