@@ -290,17 +290,21 @@ class BayesOpt:
                 method=ts_config.exp_method,
                 exploration_proportion=ts_config.exp_proportion,
             )
+            print("got top exploration points")
 
             # Second, evaluate the acquisition functions at these candidate points
             y_exploration = acquisition_fn_sharex(exploration_points)
+            print("evaluated acquisition functions with shared x")
 
             # Now, find the top candidate points based on
             # the evaluated acquisition functions
             _, top_exploration_points_idx = torch.topk(
                 y_exploration, k=ts_config.num_top_exp_points, dim=1
             )
+            print("got top exploration points idx")
 
             current_top_points = exploration_points[top_exploration_points_idx]
+            print("got current top points")
 
             if top_exploration_points is None:
                 top_exploration_points = current_top_points
@@ -309,7 +313,7 @@ class BayesOpt:
                 top_exploration_points = torch.cat(
                     [top_exploration_points, current_top_points], dim=1
                 )
-        print("got top exploration points")
+            print("got top exploration points")
 
         # After the loop, top_exploration_points will have shape:
         # (num_samples, num_top_exp_points * num_exp_iters, dimension)
