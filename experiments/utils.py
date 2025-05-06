@@ -8,7 +8,7 @@ import torch
 
 from rlaopt.preconditioners import IdentityConfig, NystromConfig
 from rlaopt.solvers import PCGConfig, SAPConfig, SAPAccelConfig
-from scalable_gp_inference.random_features import RFConfig, TanimotoRFConfig
+from scalable_gp_inference.random_features import RFConfig
 from scalable_gp_inference.sdd_config import SDDConfig
 
 from experiments.data_processing.load_torch import LOADERS
@@ -23,7 +23,6 @@ from experiments.constants import (
     OPT_RTOL,
     OPT_SDD_MOMENTUM,
     OPT_SDD_THETA_UNSCALED,
-    GP_INFERENCE_TANIMOTO_MODULO_VALUE,
 )
 
 
@@ -263,14 +262,9 @@ def get_rf_config(kernel_type: str, num_random_features: int):
     Returns:
         RFConfig: The random features configuration.
     """
-    if kernel_type == "tanimoto":
-        return TanimotoRFConfig(
-            num_features=num_random_features,
-            modulo_value=GP_INFERENCE_TANIMOTO_MODULO_VALUE,
-        )
-    elif kernel_type in ["rbf", "matern12", "matern32", "matern52"]:
+    if kernel_type in ["rbf", "matern12", "matern32", "matern52"]:
         return RFConfig(
             num_features=num_random_features,
         )
     else:
-        raise ValueError(f"Unknown kernel type: {kernel_type}")
+        raise ValueError(f"Unknown kernel type for random features: {kernel_type}")

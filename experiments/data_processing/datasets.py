@@ -149,9 +149,9 @@ class DockstringDataset(_BaseDataset):
     # https://github.com/AustinT/tanimoto-random-features-neurips23/blob/main/trf23/datasets/dockstring.py
     # and https://github.com/cambridge-mlg/sgd-gp/blob/main/scalable_gps/data.py
     target: str | None = None  # Needed for loading only
-    input_dim: int  # Needed for loading only
+    input_dim: int | None = None  # Needed for loading only
     binarize: bool = False  # Needed for loading only
-    mean_y: float  # Needed for loading only
+    mean_y: float | None = None  # Needed for loading only
 
     def _raw_download(self, save_path: str):
         """Download the Dockstring data and save it to the specified location."""

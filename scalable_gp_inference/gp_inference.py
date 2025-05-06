@@ -70,11 +70,9 @@ class GPInference:
             else:
                 X_in = self.Xtr
 
-            prior_samples = get_prior_samples(
+            prior_samples, _ = get_prior_samples(
                 X_in,
-                self.rf_config,
-                self.kernel_config,
-                self.kernel_type,
+                self.rf_obj,
                 self.noise_variance,
                 self.num_posterior_samples,
                 return_feature_weights=False,
