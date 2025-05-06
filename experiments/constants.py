@@ -101,7 +101,7 @@ OPT_MAX_PASSES_MAP = {
     "yolanda": 50,
     "malonaldehyde": 50,
     "benzene": 50,
-    "taxi": 2,
+    "taxi": 1,
     "3droad": 50,
     "song": 50,
     "houseelec": 20,
