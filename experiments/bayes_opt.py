@@ -276,3 +276,7 @@ def main():
         exp_method="nearby",
         solver_config_kwargs_list=solver_config_kwargs_list,
     )
+
+
+if __name__ == "__main__":
+    main()
