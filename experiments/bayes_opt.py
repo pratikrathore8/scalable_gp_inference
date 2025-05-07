@@ -31,6 +31,12 @@ from experiments.utils import (
 )
 
 
+OPT_PRECONDITIONERS_DICT = {
+    "pcg": OPT_PCG_PRECONDITIONERS,
+    "sap": OPT_SAP_PRECONDITIONERS,
+}
+
+
 def get_bo_obj(
     bo_config: BayesOptConfig, device: torch.device, dtype: torch.dtype
 ) -> BayesOpt:
@@ -49,10 +55,45 @@ def get_solver_config_kwargs(
     regularization: float,
     damping: str,
     blocks: int,
-    step_size_unscaled: float,
+    step_sizes_unscaled: float,
     device: torch.device,
 ) -> list[dict]:
-    pass
+    # Loop over opt_types to get list of solver config kwargs (don't put in ntr though)
+    solver_config_kwargs = []
+    for opt_type in opt_types:
+        if opt_type == "sdd":
+            # Loop over the step sizes
+            for step_size_unscaled in step_sizes_unscaled:
+                solver_config_kwargs.append(
+                    {
+                        "opt_type": "sdd",
+                        "max_passes": max_passes,
+                        "preconditioner": None,
+                        "rank": None,
+                        regularization: None,
+                        "damping": None,
+                        "blocks": blocks,
+                        "step_size_unscaled": step_size_unscaled,
+                        "device": device,
+                    }
+                )
+        else:
+            # Handle pcg and sap by looping over preconditioners
+            for preconditioner in opt_preconditioners_dict[opt_type]:
+                solver_config_kwargs.append(
+                    {
+                        "opt_type": opt_type,
+                        "max_passes": max_passes,
+                        "preconditioner": preconditioner,
+                        "rank": rank,
+                        "regularization": regularization,
+                        "damping": damping,
+                        "blocks": blocks,
+                        "step_size_unscaled": None,
+                        "device": device,
+                    }
+                )
+    return solver_config_kwargs
 
 
 def main():
@@ -123,3 +164,14 @@ def main():
     # Run Bayesian optimization with nearby exploration
     # In this case, we actually use the PCG/SAP/SDD optimizers
     bo_nearby = get_bo_obj(bo_config=bo_config, device=args.device)
+    solver_config_kwargs = get_solver_config_kwargs(
+        opt_types=OPT_TYPES,
+        max_passes=BO_MAX_PASSES_PER_ITER,
+        opt_preconditioners_dict=OPT_PRECONDITIONERS_DICT,
+        rank=OPT_RANK,
+        regularization=BO_NOISE_VARIANCE,
+        damping=OPT_DAMPING,
+        blocks=BO_OPT_NUM_BLOCKS,
+        step_sizes_unscaled=OPT_SDD_STEP_SIZES_UNSCALED,
+        device=args.device,
+    )
