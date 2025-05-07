@@ -47,21 +47,16 @@ STRATEGY_MAP = {
     "sap": "best",
     "pcg": "best",
     "sdd": "best",
-    "mimosa": "best",
-    "falkon": "best"
 }
 
-SOLVERS = ["sap", "nsap", "pcg", "sdd", "mimosa", "falkon"]
+SOLVERS = ["sap", "pcg", "sdd"]
 KERNEL_TYPES = ["rbf", "matern"]
 PRECOND_TYPES = ["nystrom", "partial_cholesky"]
 
 HPARAM_LABELS = {
     "sdd": ["precond", "r", "sampling_method"],
     "sap": ["b"],
-    "nsap": ["b"],
     "pcg": ["precond", "r"],
-    "mimosa": ["precond", "r", "m"],
-    "falkon": ["m"]
 }
 
 X_AXIS_OPTIONS = {
