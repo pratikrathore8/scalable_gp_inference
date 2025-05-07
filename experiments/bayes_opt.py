@@ -96,6 +96,61 @@ def _get_solver_config_kwargs_list(
     return solver_config_kwargs
 
 
+def _run_single_experiment(
+    bo_obj,
+    ts_config: TSConfig,
+    bo_config: BayesOptConfig,
+    bo_max_iters: int,
+    solver_config_kwargs: dict = None,
+):
+    """Run a single BO experiment with wandb logging."""
+    # Configure wandb
+    config_dict = {
+        "max_passes_per_iter": solver_config_kwargs["max_passes"]
+        if solver_config_kwargs
+        else None,
+        "max_iters": bo_max_iters,
+        "bo_config": bo_config.to_dict(),
+        "ts_config": ts_config.to_dict(),
+        "solver_config": get_solver_config(
+            ntr=len(bo_obj.bo_state), **solver_config_kwargs
+        )
+        if solver_config_kwargs
+        else None,
+        "solver_name": solver_config_kwargs["opt_type"]
+        if solver_config_kwargs
+        else None,
+    }
+
+    wandb.init(
+        project=f"bayesopt_lengthscale_{bo_config.kernel_config.lengthscale}",
+        config=config_dict,
+    )
+
+    # Run experiment
+    for _ in range(bo_max_iters):
+        ts = time.time()
+        krr_solver_config = None
+        if solver_config_kwargs:
+            krr_solver_config = get_solver_config(
+                ntr=len(bo_obj.bo_state), **solver_config_kwargs
+            )
+        bo_obj.step(ts_config=ts_config, krr_solver_config=krr_solver_config)
+        te = time.time()
+
+        # Log metrics
+        wandb.log(
+            {
+                "iter_time": te - ts,
+                "num_acquisitions": len(bo_obj.bo_state),
+                "fn_max": bo_obj.bo_state.fn_max,
+                "fn_argmax": bo_obj.bo_state.fn_argmax,
+            }
+        )
+
+    wandb.finish()
+
+
 def _run_bo_experiment(
     bo_config: BayesOptConfig,
     device: torch.device,
@@ -153,61 +208,6 @@ def _run_bo_experiment(
             )
     else:
         raise ValueError(f"Unknown exploration method: {exp_method}")
-
-
-def _run_single_experiment(
-    bo_obj,
-    ts_config: TSConfig,
-    bo_config: BayesOptConfig,
-    bo_max_iters: int,
-    solver_config_kwargs: dict = None,
-):
-    """Run a single BO experiment with wandb logging."""
-    # Configure wandb
-    config_dict = {
-        "max_passes_per_iter": solver_config_kwargs["max_passes"]
-        if solver_config_kwargs
-        else None,
-        "max_iters": bo_max_iters,
-        "bo_config": bo_config.to_dict(),
-        "ts_config": ts_config.to_dict(),
-        "solver_config": get_solver_config(
-            ntr=len(bo_obj.bo_state), **solver_config_kwargs
-        )
-        if solver_config_kwargs
-        else None,
-        "solver_name": solver_config_kwargs["opt_type"]
-        if solver_config_kwargs
-        else None,
-    }
-
-    wandb.init(
-        project=f"bayesopt_lengthscale_{bo_config.kernel_config.lengthscale}",
-        config=config_dict,
-    )
-
-    # Run experiment
-    for _ in range(bo_max_iters):
-        ts = time.time()
-        krr_solver_config = None
-        if solver_config_kwargs:
-            krr_solver_config = get_solver_config(
-                ntr=len(bo_obj.bo_state), **solver_config_kwargs
-            )
-        bo_obj.step(ts_config=ts_config, krr_solver_config=krr_solver_config)
-        te = time.time()
-
-        # Log metrics
-        wandb.log(
-            {
-                "iter_time": te - ts,
-                "num_acquisitions": len(bo_obj.bo_state),
-                "fn_max": bo_obj.bo_state.fn_max,
-                "fn_argmax": bo_obj.bo_state.fn_argmax,
-            }
-        )
-
-    wandb.finish()
 
 
 def main():
