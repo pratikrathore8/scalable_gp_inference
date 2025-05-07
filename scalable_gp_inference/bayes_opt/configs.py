@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from rlaopt.kernels import KernelConfig
 from .adam_config import AdamConfig
 
@@ -26,6 +26,19 @@ class BayesOptConfig:
                 f"Received self.min_val = {self.min_val}, self.max_val = {self.max_val}"
             )
 
+    def to_dict(self) -> dict:
+        return {
+            "min_val": self.min_val,
+            "max_val": self.max_val,
+            "dim": self.dim,
+            "kernel_type": self.kernel_type,
+            "kernel_config": self.kernel_config.to_dict(),
+            "noise_variance": self.noise_variance,
+            "num_random_features": self.num_random_features,
+            "num_init_samples": self.num_init_samples,
+            "acquisition_opt_config": self.acquisition_opt_config.to_dict(),
+            "num_acquisition_opt_iters": self.num_acquisition_opt_iters,
+        }
 
 @dataclass(kw_only=True, frozen=True)
 class TSConfig:
@@ -56,3 +69,6 @@ class TSConfig:
 
     # Method for acquisition (either random search or GP)
     acquisition_method: str = "gp"
+
+    def to_dict(self) -> dict:
+        return asdict(self)
