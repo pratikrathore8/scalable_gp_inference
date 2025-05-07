@@ -32,7 +32,7 @@ def run_plotting(datasets: list[str],
                 x_axis_options: dict[str, str]
                 ):
 
-    """Plots for all given datasets, y metrics, and x-axis options. Returuns both individual and grid plots."""
+    """Plots for all given datasets, y metrics, and x-axis options. Returns both individual and grid plots."""
     for dataset in datasets:
         project = f"gp_inference_{dataset}"
         runs = get_project_runs(ENTITY, project)
@@ -88,7 +88,7 @@ def run_plotting(datasets: list[str],
                 continue
 
             # Initialize plotter and save paths
-            plotter = Plotter(runs_data)
+            plotter = Plotter(runs_data, aggregated=False)
 
             save_dir = Path(BASE_SAVE_DIR) / dataset
             save_dir.mkdir(parents=True, exist_ok=True)
@@ -172,7 +172,7 @@ def run_all():
                 print(f"No plottable data for {dataset} (x-axis: {x_axis})")
                 continue
 
-            plotter = Plotter(runs_data)
+            plotter = Plotter(runs_data, aggregated=False)
 
             save_dir = Path(BASE_SAVE_DIR) / dataset
             save_dir.mkdir(parents=True, exist_ok=True)
@@ -192,6 +192,59 @@ def run_all():
                 x_axis=x_axis,
                 title=dataset,
                 save_path=save_dir / f"MULTI_METRIC_{x_axis}_{dataset}_{TIMESTAMP}"
+            )
+
+
+def run_errorbars(datasets: list[str], solvers: list[str], y_metrics: list[str],
+                  num_seeds: int, sort_metric: str):
+    """Plots mean error bars for the given datasets, y metrics, and solvers for a given number of random seeds."""
+    for dataset in datasets:
+        project = f"gp_inference_{dataset}"
+        runs = get_project_runs(ENTITY, project)
+
+        if not runs:
+            print(f"No runs available for {dataset} on W&B")
+            continue
+
+        try:
+            filtered = filter_runs(
+                runs,
+                require_all={
+                    CONFIG_KEYS["DATASET"]: dataset,
+                    CONFIG_KEYS["SOLVER"]: solvers
+                }
+            )
+        except KeyError as e:
+            print(f"Error filtering {dataset}: {str(e)}")
+            continue
+
+        if not filtered:
+            print(f"No valid runs after filtering for {dataset}")
+            continue
+
+        try:
+            agg_data = choose_and_aggregate_runs(filtered, y_metrics, num_seeds, sort_metric)
+
+        except Exception as e:
+            print(f"Error selecting runs for {dataset}: {str(e)}")
+            continue
+
+        if not agg_data:
+            print(f"No selected runs for {dataset}")
+            continue
+
+        bar_plotter = Plotter(agg_data, aggregated=True)
+
+        save_dir = Path(BASE_SAVE_DIR) / dataset
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        for y_metric in y_metrics:
+            y_key = \
+            [key for key, value in METRIC_PATHS.items() if value == y_metric][0]
+            bar_plotter.plot_errorbars(
+                metric=y_metric,
+                title=dataset,
+                save_path=save_dir / f"ERRORBAR_{y_key}_{dataset}_{TIMESTAMP}"
             )
 
 # Example Usage

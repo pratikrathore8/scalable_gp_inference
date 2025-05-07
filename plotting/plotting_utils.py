@@ -47,9 +47,11 @@ rcParams.update({
 
 
 class Plotter:
-    def __init__(self, runs_data: Dict[str, pd.DataFrame]):
+    def __init__(self, runs_data: Dict[str, pd.DataFrame], aggregated: bool):
         self.runs_data = runs_data
-        self._validate_data()
+        self.aggregated = aggregated
+        if not self.aggregated:
+            self._validate_data()
 
     def _validate_data(self):
         """Ensure required config keys exist in all DataFrames"""
@@ -110,6 +112,65 @@ class Plotter:
         """Clean dataset name formatting"""
         return dataset_path.replace("_", " ").title()
 
+
+    def plot_errorbars(
+            self,
+            metric: str,
+            title: str | None = None,
+            save_path: Path | None = None,
+            capsize: float = 4.0):
+
+        fig, ax = plt.subplots(figsize=(SZ_COL, SZ_ROW))
+
+        labels, means, errs, colors = [], [], [], []
+
+        for raw_key, df in self.runs_data.items():
+            means.append(df[f"{metric}_mean"].iloc[0])
+            errs.append(df[f"{metric}_std"].iloc[0])
+
+            raw_key = raw_key.strip()
+            solver_key = raw_key.split()[0].lower()
+            variant = raw_key[len(solver_key):].strip()
+
+            base_label = OPT_LABELS.get(solver_key, solver_key.upper())
+            label = f"{base_label} {variant}".strip()
+            labels.append(label)
+
+            if solver_key == "sap":
+                if "identity" in variant.lower():
+                    color_key = "sap_identity"
+                elif "nystrom" in variant.lower():
+                    color_key = "sap_nystrom"
+                else:
+                    color_key = "sap"
+            else:
+                color_key = solver_key
+            colors.append(OPT_COLORS.get(color_key, "k"))
+
+        x = np.arange(len(labels))
+        for xi, m, err, col in zip(x, means, errs, colors):
+            ax.errorbar(
+                xi, m, yerr=err,
+                fmt="s",
+                capsize=capsize,
+                linestyle="none",
+                color=col,
+                ecolor=col,
+                markeredgecolor=col,
+                markerfacecolor=col,
+            )
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=30, ha="right")
+        ax.set_ylabel(self._name_y_axis(metric))
+
+        if title:
+            ax.set_title(title)
+
+        self._save_or_show(fig, save_path)
+        return fig, ax
+
+
     def plot_single_metric(
             self,
             y_metric: str,
@@ -138,10 +199,10 @@ class Plotter:
         if log_y:
             ax.set_yscale("log")
 
-        # if title is None:
-        #     dataset = self._name_dataset(df[CONFIG_KEYS["DATASET"]].iloc[0])
-        #     title = f"{dataset}"
-        # ax.set_title(title, fontsize=FONTSIZE*0.9)
+        if title is None:
+            dataset = self._name_dataset(df[CONFIG_KEYS["DATASET"]].iloc[0])
+            title = f"{dataset}"
+        ax.set_title(title, fontsize=FONTSIZE*0.9)
 
         self._save_or_show(fig, save_path)
         return fig, ax
@@ -185,7 +246,7 @@ class Plotter:
             if log_y:
                 ax.set_yscale("log")
 
-            # ax.set_title(METRIC_LABELS.get(y_metric, y_metric))
+            ax.set_title(title)
 
         # Hide unused axes
         for idx in range(n_metrics, len(axes)):
@@ -208,4 +269,7 @@ class Plotter:
             plt.close(fig)
         else:
             plt.show()
+
+
+
 

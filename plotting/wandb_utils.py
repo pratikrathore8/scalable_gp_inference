@@ -225,3 +225,83 @@ def choose_runs(
                 selected.append(best_run)
 
     return selected
+
+
+def choose_and_aggregate_runs(
+        runs: List[wandb.apis.public.Run],
+        y_metrics: List[str],
+        num_seeds: int,
+        sort_metric: str,
+) -> Dict[str, pd.DataFrame]:
+    """
+    For plotting errorbars only. Takes the top (num_seeds) number of filtered runs, and for each metric, extracts the mean and std.
+    Returns {solver_label: DataFrame} where each DataFrame holds one row with the final value, mean and std for every metric in y_metrics.
+    """
+    solver_groups = defaultdict(list)
+    for run in runs:
+        if solver := run.config.get(CONFIG_KEYS["SOLVER"]):
+            if solver == "sap":
+                solver_config = run.config.get("solver_config", {})
+                precond_type = "Nystrom" if "precond_config" in solver_config else "Identity"
+                solver_groups[(solver, precond_type)].append(run)
+            else:
+                solver_groups[solver].append(run)
+
+    grouped_runs = {}
+    for solver, s_runs in solver_groups.items():
+        label = (f"{solver[0]} ({solver[1]})"
+                 if isinstance(solver, tuple)
+                 else str(solver))
+        grouped_runs[label] = s_runs
+
+    aggregated: dict[str, pd.DataFrame] = {}
+    for label, runs in grouped_runs.items():
+        records = {m: [] for m in y_metrics}
+
+        if num_seeds is not None and num_seeds < len(runs):
+            use_metric = sort_metric or y_metrics[0]
+
+            lower_is_better = use_metric in {
+                METRIC_PATHS["TEST_RMSE"],
+                METRIC_PATHS["POSTERIOR_NLL"],
+                METRIC_PATHS["POSTERIOR_MEAN_NLL"],
+            }
+
+            scored: list[tuple[float, wandb.apis.public.Run]] = []
+            for r in runs:
+                df = get_run_history(r, [use_metric],
+                                     x_axis="datapasses",
+                                     include_config=False)
+                if df.empty or not np.isfinite(df[use_metric].iloc[-1]):
+                    continue
+                scored.append((df[use_metric].iloc[-1], r))
+
+            scored.sort(key=lambda t: t[0], reverse=not lower_is_better)
+            runs = [r for _, r in scored[:num_seeds]]
+
+        records = {m: [] for m in y_metrics}
+
+        for run in runs:
+            df = get_run_history(run, y_metrics, x_axis="datapasses",
+                                 include_config=False)
+            if df.empty:
+                continue
+            # take the final value
+            for m in y_metrics:
+                records[m].append(df[m].iloc[-1])
+
+        if not all(records[m] for m in y_metrics):  # skip empty sets
+            continue
+
+        stats = {
+                    f"{m}_mean": np.mean(records[m])
+                    for m in y_metrics
+                } | {
+                    f"{m}_std": np.std(records[m], ddof=1)
+                    for m in y_metrics
+                }
+
+        stats["x_value"] = 0
+        aggregated[label] = pd.DataFrame([stats])
+
+    return aggregated
