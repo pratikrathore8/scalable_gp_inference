@@ -114,7 +114,7 @@ def _run_single_experiment(
         "ts_config": ts_config.to_dict(),
         "solver_config": get_solver_config(
             ntr=len(bo_obj.bo_state), **solver_config_kwargs
-        )
+        ).to_dict()
         if solver_config_kwargs
         else None,
         "solver_name": solver_config_kwargs["opt_type"]
@@ -125,6 +125,16 @@ def _run_single_experiment(
     wandb.init(
         project=f"bayesopt_lengthscale_{bo_config.kernel_config.lengthscale}",
         config=config_dict,
+    )
+
+    # Log metrics at the start
+    wandb.log(
+        {
+            "iter_time": 0.0,  # 0 since we haven't performed any optimization
+            "num_acquisitions": len(bo_obj.bo_state),
+            "fn_max": bo_obj.bo_state.fn_max,
+            "fn_argmax": bo_obj.bo_state.fn_argmax,
+        }
     )
 
     # Run experiment
@@ -157,11 +167,11 @@ def _run_bo_experiment(
     dtype: torch.dtype,
     bo_max_iters: int,
     use_wandb: bool,
-    exp_method: str,
+    acquisition_method: str,
     solver_config_kwargs_list: list[dict] = None,
 ):
     """
-    Run Bayesian optimization experiment with the specified exploration method.
+    Run Bayesian optimization experiment with the specified acquisition method.
 
     Args:
         bo_config: Bayesian optimization configuration
@@ -169,7 +179,7 @@ def _run_bo_experiment(
         dtype: PyTorch data type
         bo_max_iters: Maximum number of BO iterations
         use_wandb: Whether to use W&B logging
-        exp_method: Exploration method ("uniform" or "nearby")
+        acquisition_method: Acquisition method ("random_search" or "gp")
         solver_config_kwargs_list: List of solver configurations
           (only used for "nearby" method)
     """
@@ -180,11 +190,11 @@ def _run_bo_experiment(
             "to run the experiment."
         )
 
-    ts_config = TSConfig(exp_method=exp_method)
+    ts_config = TSConfig(acquisition_method=acquisition_method)
     bo_obj = _get_bo_obj(bo_config=bo_config, device=device, dtype=dtype)
 
     # Handle different experiment methods
-    if exp_method == "uniform":
+    if acquisition_method == "random_search":
         _run_single_experiment(
             bo_obj=bo_obj,
             ts_config=ts_config,
@@ -192,10 +202,10 @@ def _run_bo_experiment(
             bo_max_iters=bo_max_iters,
             solver_config_kwargs=None,
         )
-    elif exp_method == "nearby":
+    elif acquisition_method == "gp":
         if not solver_config_kwargs_list:
             raise ValueError(
-                "solver_config_kwargs_list must be provided for 'nearby' method"
+                "solver_config_kwargs_list must be provided for 'gp' method"
             )
 
         for solver_config_kwargs in solver_config_kwargs_list:
@@ -207,7 +217,7 @@ def _run_bo_experiment(
                 solver_config_kwargs=solver_config_kwargs,
             )
     else:
-        raise ValueError(f"Unknown exploration method: {exp_method}")
+        raise ValueError(f"Unknown acquisition method: {acquisition_method}")
 
 
 def main():
@@ -243,18 +253,18 @@ def main():
         noise_variance=BO_NOISE_VARIANCE,
     )
 
-    # Run Bayesian optimization with uniform exploration
+    # Run Bayesian optimization with random search acquisition
     _run_bo_experiment(
         bo_config=bo_config,
         device=args.device,
         dtype=BO_PRECISION,
         bo_max_iters=BO_MAX_ITERS,
         use_wandb=LOGGING_USE_WANDB,
-        exp_method="uniform",
+        acquisition_method="random_search",
         solver_config_kwargs_list=None,
     )
 
-    # Run Bayesian optimization with nearby exploration
+    # Run Bayesian optimization with GP-based acquisition
     # In this case, we actually use the PCG/SAP/SDD optimizers
     solver_config_kwargs_list = _get_solver_config_kwargs_list(
         opt_types=OPT_TYPES,
@@ -273,7 +283,7 @@ def main():
         dtype=BO_PRECISION,
         bo_max_iters=BO_MAX_ITERS,
         use_wandb=LOGGING_USE_WANDB,
-        exp_method="nearby",
+        acquisition_method="gp",
         solver_config_kwargs_list=solver_config_kwargs_list,
     )
 

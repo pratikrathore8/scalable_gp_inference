@@ -40,6 +40,7 @@ class BayesOptConfig:
             "num_acquisition_opt_iters": self.num_acquisition_opt_iters,
         }
 
+
 @dataclass(kw_only=True, frozen=True)
 class TSConfig:
     # Number of iterations to run Thompson sampling in Bayesian optimization
@@ -68,7 +69,7 @@ class TSConfig:
     num_acquisition_fns: int = 1000
 
     # Method for acquisition (either random search or GP)
-    acquisition_method: str = "gp"
+    acquisition_method: str = "gp"  # or "random_search"
 
     def to_dict(self) -> dict:
         return asdict(self)
