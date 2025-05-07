@@ -1,6 +1,7 @@
 import argparse
 import time
 
+import torch
 from rlaopt.kernels import KernelConfig
 from scalable_gp_inference.bayes_opt.configs import BayesOptConfig, TSConfig
 from scalable_gp_inference.bayes_opt.core import BayesOpt
@@ -15,8 +16,6 @@ from experiments.constants import (
     BO_KERNEL_TYPE,
     BO_KERNEL_CONST_SCALING,
     OPT_TYPES,
-    OPT_ATOL,
-    OPT_RTOL,
     OPT_RANK,
     OPT_DAMPING,
     OPT_SAP_PRECONDITIONERS,
@@ -24,13 +23,43 @@ from experiments.constants import (
     OPT_SDD_STEP_SIZES_UNSCALED,
     LOGGING_USE_WANDB,
 )
-from experiments.utils import device_type, get_solver_config, set_precision, set_random_seed
+from experiments.utils import (
+    device_type,
+    get_solver_config,
+    set_precision,
+    set_random_seed,
+)
+
+
+def get_bo_obj(
+    bo_config: BayesOptConfig, device: torch.device, dtype: torch.dtype
+) -> BayesOpt:
+    return BayesOpt(
+        bo_config=bo_config,
+        device=device,
+        dtype=dtype,
+    )
+
+
+def get_solver_config_kwargs(
+    opt_types: str,
+    max_passes: int,
+    opt_preconditioners_dict: dict,
+    rank: int,
+    regularization: float,
+    damping: str,
+    blocks: int,
+    step_size_unscaled: float,
+    device: torch.device,
+) -> list[dict]:
+    pass
 
 
 def main():
     # Parse arguments
     parser = argparse.ArgumentParser(
-        description="Run Bayesian optimization for a Matern-3/2 kernel for a given lengthscale, seed, and device"
+        description="Run Bayesian optimization for a Matern-3/2 kernel for a "
+        "given lengthscale, seed, and device"
     )
     parser.add_argument(
         "--lengthscale",
@@ -48,7 +77,9 @@ def main():
     set_precision(BO_PRECISION)
 
     # Set up parameters for kernel
-    kernel_config = KernelConfig(const_scaling=BO_KERNEL_CONST_SCALING, lengthscale=args.lengthscale)
+    kernel_config = KernelConfig(
+        const_scaling=BO_KERNEL_CONST_SCALING, lengthscale=args.lengthscale
+    )
 
     # Get config for Bayesian optimization
     bo_config = BayesOptConfig(
@@ -62,16 +93,7 @@ def main():
     ts_config_nearby = TSConfig(exp_method="nearby")
 
     # Run Bayesian optimization with uniform exploration
-    bo_uniform = BayesOpt(
-        bo_config=bo_config,
-        ts_config=ts_config_uniform,
-        max_passes=BO_MAX_PASSES_PER_ITER,
-        max_iters=BO_MAX_ITERS,
-        atol=OPT_ATOL,
-        rtol=OPT_RTOL,
-        seed=args.seed,
-        device=args.device,
-    )
+    bo_uniform = get_bo_obj(bo_config=bo_config, device=args.device, dtype=BO_PRECISION)
     if LOGGING_USE_WANDB:
         wandb.init(
             project="bayesopt_lengthscale_{args.lengthscale}",
@@ -89,8 +111,15 @@ def main():
         bo_uniform.step(ts_config=ts_config_uniform, krr_solver_config=None)
         te = time.time()
         if LOGGING_USE_WANDB:
-            wandb.log({"iter_time": te - ts, "num_acquisitions": len(bo_uniform.bo_state),
-                       "fn_max": bo_uniform.bo_state.fn_max, "fn_argmax": bo_uniform.bo_state.fn_argmax})
+            wandb.log(
+                {
+                    "iter_time": te - ts,
+                    "num_acquisitions": len(bo_uniform.bo_state),
+                    "fn_max": bo_uniform.bo_state.fn_max,
+                    "fn_argmax": bo_uniform.bo_state.fn_argmax,
+                }
+            )
 
     # Run Bayesian optimization with nearby exploration
     # In this case, we actually use the PCG/SAP/SDD optimizers
+    bo_nearby = get_bo_obj(bo_config=bo_config, device=args.device)
