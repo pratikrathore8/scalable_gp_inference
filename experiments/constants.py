@@ -1,3 +1,4 @@
+import torch
 from torch.optim import Adam
 
 from experiments.data_processing.load_torch import LOADERS
@@ -5,6 +6,9 @@ from experiments.data_processing.load_torch import LOADERS
 # Bayesian optimization parameters
 BO_MAX_PASSES_PER_ITER = 10  # Number of passes for solving KRR system in BO
 BO_MAX_ITERS = 30  # Number of iterations for BO
+BO_NOISE_VARIANCE = 1e-6  # Noise variance for the kernel
+BO_OPT_NUM_BLOCKS = 5  # Number of blocks for SAP/SDD
+BO_PRECISION = torch.float32  # Precision for BO
 BO_KERNEL_TYPE = "matern32"  # Kernel type for BO
 BO_KERNEL_CONST_SCALING = 1.0  # Constant scaling for the kernel
 

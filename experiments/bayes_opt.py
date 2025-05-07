@@ -1,14 +1,17 @@
 import argparse
 import time
 
-import torch
 from rlaopt.kernels import KernelConfig
 from scalable_gp_inference.bayes_opt.configs import BayesOptConfig, TSConfig
 from scalable_gp_inference.bayes_opt.core import BayesOpt
+import wandb
 
 from experiments.constants import (
     BO_MAX_PASSES_PER_ITER,
     BO_MAX_ITERS,
+    BO_NOISE_VARIANCE,
+    BO_OPT_NUM_BLOCKS,
+    BO_PRECISION,
     BO_KERNEL_TYPE,
     BO_KERNEL_CONST_SCALING,
     OPT_TYPES,
@@ -21,9 +24,8 @@ from experiments.constants import (
     OPT_SDD_STEP_SIZES_UNSCALED,
     LOGGING_USE_WANDB,
 )
-from experiments.utils import device_type, set_precision, set_random_seed
+from experiments.utils import device_type, get_solver_config, set_precision, set_random_seed
 
-PRECISION = torch.float32
 
 def main():
     # Parse arguments
@@ -43,7 +45,52 @@ def main():
     set_random_seed(args.seed)
 
     # Set precision for training
-    set_precision(PRECISION)
+    set_precision(BO_PRECISION)
 
     # Set up parameters for kernel
     kernel_config = KernelConfig(const_scaling=BO_KERNEL_CONST_SCALING, lengthscale=args.lengthscale)
+
+    # Get config for Bayesian optimization
+    bo_config = BayesOptConfig(
+        kernel_config=kernel_config,
+        kernel_type=BO_KERNEL_TYPE,
+        noise_variance=BO_NOISE_VARIANCE,
+    )
+
+    # Get configs for Thompson sampling
+    ts_config_uniform = TSConfig(exp_method="uniform")
+    ts_config_nearby = TSConfig(exp_method="nearby")
+
+    # Run Bayesian optimization with uniform exploration
+    bo_uniform = BayesOpt(
+        bo_config=bo_config,
+        ts_config=ts_config_uniform,
+        max_passes=BO_MAX_PASSES_PER_ITER,
+        max_iters=BO_MAX_ITERS,
+        atol=OPT_ATOL,
+        rtol=OPT_RTOL,
+        seed=args.seed,
+        device=args.device,
+    )
+    if LOGGING_USE_WANDB:
+        wandb.init(
+            project="bayesopt_lengthscale_{args.lengthscale}",
+            config={
+                "max_passes_per_iter": BO_MAX_PASSES_PER_ITER,
+                "max_iters": BO_MAX_ITERS,
+                "bo_config": bo_config.to_dict(),
+                "ts_config": ts_config_uniform.to_dict(),
+                "solver_config": None,
+                "solver_name": None,
+            },
+        )
+    for _ in range(BO_MAX_ITERS):
+        ts = time.time()
+        bo_uniform.step(ts_config=ts_config_uniform, krr_solver_config=None)
+        te = time.time()
+        if LOGGING_USE_WANDB:
+            wandb.log({"iter_time": te - ts, "num_acquisitions": len(bo_uniform.bo_state),
+                       "fn_max": bo_uniform.bo_state.fn_max, "fn_argmax": bo_uniform.bo_state.fn_argmax})
+
+    # Run Bayesian optimization with nearby exploration
+    # In this case, we actually use the PCG/SAP/SDD optimizers
