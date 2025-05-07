@@ -37,7 +37,7 @@ OPT_PRECONDITIONERS_DICT = {
 }
 
 
-def get_bo_obj(
+def _get_bo_obj(
     bo_config: BayesOptConfig, device: torch.device, dtype: torch.dtype
 ) -> BayesOpt:
     return BayesOpt(
@@ -47,7 +47,7 @@ def get_bo_obj(
     )
 
 
-def get_solver_config_kwargs(
+def _get_solver_config_kwargs_list(
     opt_types: str,
     max_passes: int,
     opt_preconditioners_dict: dict,
@@ -96,6 +96,99 @@ def get_solver_config_kwargs(
     return solver_config_kwargs
 
 
+def _run_bo_experiment_uniform(
+    bo_config: BayesOptConfig,
+    device: torch.device,
+    dtype: torch.dtype,
+    bo_max_iters: int,
+    use_wandb: bool,
+):
+    ts_config = TSConfig(exp_method="uniform")
+    bo_obj = _get_bo_obj(bo_config=bo_config, device=device, dtype=dtype)
+    if use_wandb:
+        wandb.init(
+            project=f"bayesopt_lengthscale_{bo_config.kernel_config.lengthscale}",
+            config={
+                "max_passes_per_iter": None,
+                "max_iters": bo_max_iters,
+                "bo_config": bo_config.to_dict(),
+                "ts_config": ts_config.to_dict(),
+                "solver_config": None,
+                "solver_name": None,
+            },
+        )
+        for _ in range(bo_max_iters):
+            ts = time.time()
+            bo_obj.step(ts_config=ts_config, krr_solver_config=None)
+            te = time.time()
+            wandb.log(
+                {
+                    "iter_time": te - ts,
+                    "num_acquisitions": len(bo_obj.bo_state),
+                    "fn_max": bo_obj.bo_state.fn_max,
+                    "fn_argmax": bo_obj.bo_state.fn_argmax,
+                }
+            )
+        wandb.finish()
+    else:
+        raise NotImplementedError(
+            "Running experiment without wandb is not implemented yet. "
+            "Please set LOGGING_USE_WANDB in constants.py to True "
+            "to run the experiment."
+        )
+
+
+def _run_bo_experiment_nearby(
+    bo_config: BayesOptConfig,
+    device: torch.device,
+    dtype: torch.dtype,
+    bo_max_iters: int,
+    use_wandb: bool,
+    solver_config_kwargs_list: list[dict],
+):
+    ts_config = TSConfig(exp_method="nearby")
+    bo_obj = _get_bo_obj(bo_config=bo_config, device=device, dtype=dtype)
+    for solver_config_kwargs in solver_config_kwargs_list:
+        if use_wandb:
+            wandb.init(
+                project=f"bayesopt_lengthscale_{bo_config.kernel_config.lengthscale}",
+                config={
+                    "max_passes_per_iter": solver_config_kwargs["max_passes"],
+                    "max_iters": bo_max_iters,
+                    "bo_config": bo_config.to_dict(),
+                    "ts_config": ts_config.to_dict(),
+                    "solver_config_init": get_solver_config(
+                        ntr=len(bo_obj.bo_state), **solver_config_kwargs
+                    ),
+                    "solver_name": solver_config_kwargs["opt_type"],
+                },
+            )
+            for _ in range(bo_max_iters):
+                ts = time.time()
+                bo_obj.step(
+                    ts_config=ts_config,
+                    krr_solver_config=get_solver_config(
+                        ntr=len(bo_obj.bo_state), **solver_config_kwargs
+                    ),
+                )
+                te = time.time()
+                wandb.log(
+                    {
+                        "iter_time": te - ts,
+                        "num_acquisitions": len(bo_obj.bo_state),
+                        "fn_max": bo_obj.bo_state.fn_max,
+                        "fn_argmax": bo_obj.bo_state.fn_argmax,
+                    }
+                )
+            wandb.finish()
+        else:
+            raise NotImplementedError(
+                "Running experiment without wandb is not implemented yet. "
+                "Please set LOGGING_USE_WANDB in constants.py to True "
+                "to run the experiment."
+            )
+
+
 def main():
     # Parse arguments
     parser = argparse.ArgumentParser(
@@ -129,42 +222,18 @@ def main():
         noise_variance=BO_NOISE_VARIANCE,
     )
 
-    # Get configs for Thompson sampling
-    ts_config_uniform = TSConfig(exp_method="uniform")
-    ts_config_nearby = TSConfig(exp_method="nearby")
-
     # Run Bayesian optimization with uniform exploration
-    bo_uniform = get_bo_obj(bo_config=bo_config, device=args.device, dtype=BO_PRECISION)
-    if LOGGING_USE_WANDB:
-        wandb.init(
-            project="bayesopt_lengthscale_{args.lengthscale}",
-            config={
-                "max_passes_per_iter": BO_MAX_PASSES_PER_ITER,
-                "max_iters": BO_MAX_ITERS,
-                "bo_config": bo_config.to_dict(),
-                "ts_config": ts_config_uniform.to_dict(),
-                "solver_config": None,
-                "solver_name": None,
-            },
-        )
-    for _ in range(BO_MAX_ITERS):
-        ts = time.time()
-        bo_uniform.step(ts_config=ts_config_uniform, krr_solver_config=None)
-        te = time.time()
-        if LOGGING_USE_WANDB:
-            wandb.log(
-                {
-                    "iter_time": te - ts,
-                    "num_acquisitions": len(bo_uniform.bo_state),
-                    "fn_max": bo_uniform.bo_state.fn_max,
-                    "fn_argmax": bo_uniform.bo_state.fn_argmax,
-                }
-            )
+    _run_bo_experiment_uniform(
+        bo_config=bo_config,
+        device=args.device,
+        dtype=BO_PRECISION,
+        bo_max_iters=BO_MAX_ITERS,
+        use_wandb=LOGGING_USE_WANDB,
+    )
 
     # Run Bayesian optimization with nearby exploration
     # In this case, we actually use the PCG/SAP/SDD optimizers
-    bo_nearby = get_bo_obj(bo_config=bo_config, device=args.device)
-    solver_config_kwargs = get_solver_config_kwargs(
+    solver_config_kwargs_list = _get_solver_config_kwargs_list(
         opt_types=OPT_TYPES,
         max_passes=BO_MAX_PASSES_PER_ITER,
         opt_preconditioners_dict=OPT_PRECONDITIONERS_DICT,
@@ -174,4 +243,12 @@ def main():
         blocks=BO_OPT_NUM_BLOCKS,
         step_sizes_unscaled=OPT_SDD_STEP_SIZES_UNSCALED,
         device=args.device,
+    )
+    _run_bo_experiment_nearby(
+        bo_config=bo_config,
+        device=args.device,
+        dtype=BO_PRECISION,
+        bo_max_iters=BO_MAX_ITERS,
+        use_wandb=LOGGING_USE_WANDB,
+        solver_config_kwargs_list=solver_config_kwargs_list,
     )
