@@ -2,6 +2,12 @@ from torch.optim import Adam
 
 from experiments.data_processing.load_torch import LOADERS
 
+# Bayesian optimization parameters
+BO_MAX_PASSES_PER_ITER = 10  # Number of passes for solving KRR system in BO
+BO_MAX_ITERS = 30  # Number of iterations for BO
+BO_KERNEL_TYPE = "matern32"  # Kernel type for BO
+BO_KERNEL_CONST_SCALING = 1.0  # Constant scaling for the kernel
+
 # For data loading
 DATA_NAMES = list(LOADERS.keys())
 DATA_SPLIT_PROPORTION_MAP = {
