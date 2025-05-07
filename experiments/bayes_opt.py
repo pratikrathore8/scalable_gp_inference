@@ -102,6 +102,7 @@ def _run_single_experiment(
     bo_config: BayesOptConfig,
     bo_max_iters: int,
     solver_config_kwargs: dict = None,
+    wandb_config_dict: dict = {},
 ):
     """Run a single BO experiment with wandb logging."""
     # Configure wandb
@@ -121,6 +122,7 @@ def _run_single_experiment(
         if solver_config_kwargs
         else None,
     }
+    config_dict.update(wandb_config_dict)
 
     wandb.init(
         project=f"bayesopt_lengthscale_{bo_config.kernel_config.lengthscale}",
@@ -168,7 +170,9 @@ def _run_bo_experiment(
     bo_max_iters: int,
     use_wandb: bool,
     acquisition_method: str,
+    seed: int,
     solver_config_kwargs_list: list[dict] = None,
+    wandb_config_dict: dict = {},
 ):
     """
     Run Bayesian optimization experiment with the specified acquisition method.
@@ -182,6 +186,7 @@ def _run_bo_experiment(
         acquisition_method: Acquisition method ("random_search" or "gp")
         solver_config_kwargs_list: List of solver configurations
           (only used for "nearby" method)
+        wandb_config_dict: Additional W&B configuration
     """
     if not use_wandb:
         raise NotImplementedError(
@@ -191,7 +196,14 @@ def _run_bo_experiment(
         )
 
     ts_config = TSConfig(acquisition_method=acquisition_method)
+
+    # Set the random seed each time to ensure the same set of initialization points
+    # are used for each acquisition method and/or solver
+    set_random_seed(seed)
     bo_obj = _get_bo_obj(bo_config=bo_config, device=device, dtype=dtype)
+
+    # Start wandb config dict
+    wandb_config_dict = {"precision": dtype, "seed": seed}
 
     # Handle different experiment methods
     if acquisition_method == "random_search":
@@ -201,6 +213,7 @@ def _run_bo_experiment(
             bo_config=bo_config,
             bo_max_iters=bo_max_iters,
             solver_config_kwargs=None,
+            wandb_config_dict=wandb_config_dict,
         )
     elif acquisition_method == "gp":
         if not solver_config_kwargs_list:
@@ -215,6 +228,7 @@ def _run_bo_experiment(
                 bo_config=bo_config,
                 bo_max_iters=bo_max_iters,
                 solver_config_kwargs=solver_config_kwargs,
+                wandb_config_dict=wandb_config_dict,
             )
     else:
         raise ValueError(f"Unknown acquisition method: {acquisition_method}")
@@ -234,9 +248,6 @@ def main():
     parser.add_argument("--seed", type=int, help="The random seed to use")
     parser.add_argument("--device", type=device_type, help="Device ID")
     args = parser.parse_args()
-
-    # Set random seed for reproducibility
-    set_random_seed(args.seed)
 
     # Set precision for training
     set_precision(BO_PRECISION)
@@ -261,6 +272,7 @@ def main():
         bo_max_iters=BO_MAX_ITERS,
         use_wandb=LOGGING_USE_WANDB,
         acquisition_method="random_search",
+        seed=args.seed,
         solver_config_kwargs_list=None,
     )
 
@@ -284,6 +296,7 @@ def main():
         bo_max_iters=BO_MAX_ITERS,
         use_wandb=LOGGING_USE_WANDB,
         acquisition_method="gp",
+        seed=args.seed,
         solver_config_kwargs_list=solver_config_kwargs_list,
     )
 
