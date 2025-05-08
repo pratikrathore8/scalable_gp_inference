@@ -73,7 +73,7 @@ def _get_solver_config_kwargs_list(
                         "max_passes": max_passes,
                         "preconditioner": None,
                         "rank": None,
-                        regularization: None,
+                        "regularization": None,
                         "damping": None,
                         "blocks": blocks,
                         "step_size_unscaled": step_size_unscaled,

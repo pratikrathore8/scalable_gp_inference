@@ -67,7 +67,7 @@ def _apply_updates(updates: torch.Tensor, params: torch.Tensor, state: AdamState
 
 def _update(grads: torch.Tensor, state: AdamState) -> tuple[torch.Tensor, AdamState]:
 
-    m = state.beta_1 * state.m + (1 - state.beta_2) * grads
+    m = state.beta_1 * state.m + (1 - state.beta_1) * grads
     v = state.beta_2 * state.v + (1 - state.beta_2) * grads**2
 
     m_hat = m / (1 - state.beta_1 ** (state.iter_count + 1))
