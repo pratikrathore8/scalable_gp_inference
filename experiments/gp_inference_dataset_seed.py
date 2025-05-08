@@ -17,6 +17,7 @@ from experiments.constants import (
     OPT_PCG_PRECONDITIONERS,
     OPT_PCG_PRECISIONS,
     OPT_SDD_STEP_SIZES_UNSCALED,
+    OPT_SDD_THETA_UNSCALED,
     OPT_SDD_PRECISIONS,
     OPT_MAX_PASSES_MAP,
     OPT_NUM_BLOCKS_MAP,
@@ -115,6 +116,8 @@ def _get_sdd_extensions(dataset, eval_freq_map):
         "sdd",
         "--opt_num_blocks",
         str(OPT_NUM_BLOCKS_MAP[dataset]),
+        "--theta_unscaled",
+        str(OPT_SDD_THETA_UNSCALED),
     ]
     precision_extensions = _get_precision_extensions(OPT_SDD_PRECISIONS)
     # Go through each precision and unscaled step size and add the base extension

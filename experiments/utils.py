@@ -22,7 +22,6 @@ from experiments.constants import (
     OPT_ATOL,
     OPT_RTOL,
     OPT_SDD_MOMENTUM,
-    OPT_SDD_THETA_UNSCALED,
 )
 
 
@@ -124,6 +123,7 @@ def get_solver_config(
     damping: str,
     blocks: int,
     step_size_unscaled: float,
+    theta_unscaled: float,
     ntr: int,
     device: torch.device,
 ):
@@ -174,7 +174,7 @@ def get_solver_config(
         solver_config = SDDConfig(
             momentum=OPT_SDD_MOMENTUM,
             step_size=step_size_unscaled / ntr,
-            theta=OPT_SDD_THETA_UNSCALED / max_iters,
+            theta=theta_unscaled / max_iters,
             blk_size=ntr // blocks,
             **solver_config_base_kwargs,
         )

@@ -12,6 +12,7 @@ from experiments.constants import (
     BO_MAX_ITERS,
     BO_NOISE_VARIANCE,
     BO_OPT_NUM_BLOCKS,
+    BO_OPT_SDD_THETA_UNSCALED,
     BO_PRECISION,
     BO_KERNEL_TYPE,
     BO_KERNEL_CONST_SCALING,
@@ -59,11 +60,16 @@ def _get_solver_config_kwargs_list(
     damping: str,
     blocks: int,
     step_sizes_unscaled: float,
+    theta_unscaled: float,
     device: torch.device,
 ) -> list[dict]:
     # Loop over opt_types to get list of solver config kwargs (don't put in ntr though)
     solver_config_kwargs = []
     for opt_type in opt_types:
+        # Temporarily skip sap
+        if opt_type == "sap":
+            continue
+
         if opt_type == "sdd":
             # Loop over the step sizes
             for step_size_unscaled in step_sizes_unscaled:
@@ -77,6 +83,7 @@ def _get_solver_config_kwargs_list(
                         "damping": None,
                         "blocks": blocks,
                         "step_size_unscaled": step_size_unscaled,
+                        "theta_unscaled": theta_unscaled,
                         "device": device,
                     }
                 )
@@ -93,6 +100,7 @@ def _get_solver_config_kwargs_list(
                         "damping": damping,
                         "blocks": blocks,
                         "step_size_unscaled": None,
+                        "theta_unscaled": None,
                         "device": device,
                     }
                 )
@@ -289,6 +297,7 @@ def main():
         damping=OPT_DAMPING,
         blocks=BO_OPT_NUM_BLOCKS,
         step_sizes_unscaled=OPT_SDD_STEP_SIZES_UNSCALED,
+        theta_unscaled=BO_OPT_SDD_THETA_UNSCALED,
         device=args.device,
     )
     _run_bo_experiment(
