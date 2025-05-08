@@ -237,7 +237,7 @@ class BayesOpt:
         num_top_acquisition_points: int,
     ) -> torch.Tensor:
         step, state = init_adam(top_exploration_points, self.acquisition_opt_config)
-        for i in range(self.num_acquisition_opt_iters):
+        for _ in range(self.num_acquisition_opt_iters):
             grads = acquisition_grad(top_exploration_points)
             top_exploration_points, state = step(top_exploration_points, state, -grads)
 
