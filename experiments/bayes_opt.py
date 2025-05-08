@@ -38,8 +38,11 @@ OPT_PRECONDITIONERS_DICT = {
 
 
 def _get_bo_obj(
-    bo_config: BayesOptConfig, device: torch.device, dtype: torch.dtype
+    bo_config: BayesOptConfig, device: torch.device, dtype: torch.dtype, seed: int
 ) -> BayesOpt:
+    # Set the random seed each time to ensure the same set of initialization points
+    # are used for each acquisition method and/or solver
+    set_random_seed(seed)
     return BayesOpt(
         bo_config=bo_config,
         device=device,
@@ -197,16 +200,12 @@ def _run_bo_experiment(
 
     ts_config = TSConfig(acquisition_method=acquisition_method)
 
-    # Set the random seed each time to ensure the same set of initialization points
-    # are used for each acquisition method and/or solver
-    set_random_seed(seed)
-    bo_obj = _get_bo_obj(bo_config=bo_config, device=device, dtype=dtype)
-
     # Start wandb config dict
     wandb_config_dict = {"precision": dtype, "seed": seed}
 
     # Handle different experiment methods
     if acquisition_method == "random_search":
+        bo_obj = _get_bo_obj(bo_config=bo_config, device=device, dtype=dtype, seed=seed)
         _run_single_experiment(
             bo_obj=bo_obj,
             ts_config=ts_config,
@@ -222,6 +221,9 @@ def _run_bo_experiment(
             )
 
         for solver_config_kwargs in solver_config_kwargs_list:
+            bo_obj = _get_bo_obj(
+                bo_config=bo_config, device=device, dtype=dtype, seed=seed
+            )
             _run_single_experiment(
                 bo_obj=bo_obj,
                 ts_config=ts_config,
