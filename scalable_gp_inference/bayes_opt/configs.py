@@ -14,7 +14,7 @@ class BayesOptConfig:
     # Number of random features for approximating the posterior
     num_random_features: int = 5000
     # Number of samples for initialization
-    num_init_samples: int = 50000
+    num_init_samples: int = 250000
     # Acquisition function optimization configuration
     acquisition_opt_config: AdamConfig = AdamConfig(step_size=1e-1)
     num_acquisition_opt_iters: int = 100
@@ -44,7 +44,7 @@ class BayesOptConfig:
 @dataclass(kw_only=True, frozen=True)
 class TSConfig:
     # Number of iterations to run Thompson sampling in Bayesian optimization
-    num_iters: int = 30
+    num_iters: int = 10
 
     # Exploration to exploitation proportion
     exp_proportion: float = 0.1

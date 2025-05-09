@@ -5,7 +5,7 @@ from experiments.data_processing.load_torch import LOADERS
 
 # Bayesian optimization parameters
 BO_MAX_PASSES_PER_ITER = 10  # Number of passes for solving KRR system in BO
-BO_MAX_ITERS = 30  # Number of iterations for BO
+BO_MAX_ITERS = 10  # Number of iterations for BO
 BO_NOISE_VARIANCE = 1e-6  # Noise variance for the kernel
 BO_OPT_NUM_BLOCKS = 5  # Number of blocks for SAP/SDD
 # Make the averaging parameter smaller since we run SDD for fewer iterations in BO

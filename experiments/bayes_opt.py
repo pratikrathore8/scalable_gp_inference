@@ -66,10 +66,6 @@ def _get_solver_config_kwargs_list(
     # Loop over opt_types to get list of solver config kwargs (don't put in ntr though)
     solver_config_kwargs = []
     for opt_type in opt_types:
-        # Temporarily skip sap
-        if opt_type == "sap":
-            continue
-
         if opt_type == "sdd":
             # Loop over the step sizes
             for step_size_unscaled in step_sizes_unscaled:
@@ -111,7 +107,6 @@ def _run_single_experiment(
     bo_obj,
     ts_config: TSConfig,
     bo_config: BayesOptConfig,
-    bo_max_iters: int,
     solver_config_kwargs: dict = None,
     wandb_config_dict: dict = {},
 ):
@@ -121,7 +116,6 @@ def _run_single_experiment(
         "max_passes_per_iter": solver_config_kwargs["max_passes"]
         if solver_config_kwargs
         else None,
-        "max_iters": bo_max_iters,
         "bo_config": bo_config.to_dict(),
         "ts_config": ts_config.to_dict(),
         "solver_config": get_solver_config(
@@ -151,7 +145,7 @@ def _run_single_experiment(
     )
 
     # Run experiment
-    for _ in range(bo_max_iters):
+    for _ in range(ts_config.num_iters):
         ts = time.time()
         krr_solver_config = None
         if solver_config_kwargs:
@@ -206,7 +200,7 @@ def _run_bo_experiment(
             "to run the experiment."
         )
 
-    ts_config = TSConfig(acquisition_method=acquisition_method)
+    ts_config = TSConfig(acquisition_method=acquisition_method, num_iters=bo_max_iters)
 
     # Start wandb config dict
     wandb_config_dict = {"precision": dtype, "seed": seed}
@@ -218,7 +212,6 @@ def _run_bo_experiment(
             bo_obj=bo_obj,
             ts_config=ts_config,
             bo_config=bo_config,
-            bo_max_iters=bo_max_iters,
             solver_config_kwargs=None,
             wandb_config_dict=wandb_config_dict,
         )
@@ -229,17 +222,21 @@ def _run_bo_experiment(
             )
 
         for solver_config_kwargs in solver_config_kwargs_list:
-            bo_obj = _get_bo_obj(
-                bo_config=bo_config, device=device, dtype=dtype, seed=seed
-            )
-            _run_single_experiment(
-                bo_obj=bo_obj,
-                ts_config=ts_config,
-                bo_config=bo_config,
-                bo_max_iters=bo_max_iters,
-                solver_config_kwargs=solver_config_kwargs,
-                wandb_config_dict=wandb_config_dict,
-            )
+            try:
+                bo_obj = _get_bo_obj(
+                    bo_config=bo_config, device=device, dtype=dtype, seed=seed
+                )
+                _run_single_experiment(
+                    bo_obj=bo_obj,
+                    ts_config=ts_config,
+                    bo_config=bo_config,
+                    solver_config_kwargs=solver_config_kwargs,
+                    wandb_config_dict=wandb_config_dict,
+                )
+            # Handle cases where the solver fails (e.g., SDD with large step size)
+            except RuntimeError as e:
+                print(f"Run failed for {solver_config_kwargs}")
+                print(e)
     else:
         raise ValueError(f"Unknown acquisition method: {acquisition_method}")
 
