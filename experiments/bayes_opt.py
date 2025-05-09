@@ -145,27 +145,31 @@ def _run_single_experiment(
     )
 
     # Run experiment
-    for _ in range(ts_config.num_iters):
-        ts = time.time()
-        krr_solver_config = None
-        if solver_config_kwargs:
-            krr_solver_config = get_solver_config(
-                ntr=len(bo_obj.bo_state), **solver_config_kwargs
+    try:
+        for _ in range(ts_config.num_iters):
+            ts = time.time()
+            krr_solver_config = None
+            if solver_config_kwargs:
+                krr_solver_config = get_solver_config(
+                    ntr=len(bo_obj.bo_state), **solver_config_kwargs
+                )
+            bo_obj.step(ts_config=ts_config, krr_solver_config=krr_solver_config)
+            te = time.time()
+
+            # Log metrics
+            wandb.log(
+                {
+                    "iter_time": te - ts,
+                    "num_acquisitions": len(bo_obj.bo_state),
+                    "fn_max": bo_obj.bo_state.fn_max,
+                    "fn_argmax": bo_obj.bo_state.fn_argmax,
+                }
             )
-        bo_obj.step(ts_config=ts_config, krr_solver_config=krr_solver_config)
-        te = time.time()
-
-        # Log metrics
-        wandb.log(
-            {
-                "iter_time": te - ts,
-                "num_acquisitions": len(bo_obj.bo_state),
-                "fn_max": bo_obj.bo_state.fn_max,
-                "fn_argmax": bo_obj.bo_state.fn_argmax,
-            }
-        )
-
-    wandb.finish()
+    except RuntimeError as e:
+        print(f"Run failed for {solver_config_kwargs}")
+        print(e)
+    finally:
+        wandb.finish()
 
 
 def _run_bo_experiment(
@@ -222,21 +226,16 @@ def _run_bo_experiment(
             )
 
         for solver_config_kwargs in solver_config_kwargs_list:
-            try:
-                bo_obj = _get_bo_obj(
-                    bo_config=bo_config, device=device, dtype=dtype, seed=seed
-                )
-                _run_single_experiment(
-                    bo_obj=bo_obj,
-                    ts_config=ts_config,
-                    bo_config=bo_config,
-                    solver_config_kwargs=solver_config_kwargs,
-                    wandb_config_dict=wandb_config_dict,
-                )
-            # Handle cases where the solver fails (e.g., SDD with large step size)
-            except RuntimeError as e:
-                print(f"Run failed for {solver_config_kwargs}")
-                print(e)
+            bo_obj = _get_bo_obj(
+                bo_config=bo_config, device=device, dtype=dtype, seed=seed
+            )
+            _run_single_experiment(
+                bo_obj=bo_obj,
+                ts_config=ts_config,
+                bo_config=bo_config,
+                solver_config_kwargs=solver_config_kwargs,
+                wandb_config_dict=wandb_config_dict,
+            )
     else:
         raise ValueError(f"Unknown acquisition method: {acquisition_method}")
 

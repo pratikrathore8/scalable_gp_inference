@@ -377,8 +377,9 @@ class BayesOpt:
                 reg=self.noise_variance,
                 kernel_type=self.kernel_type,
                 kernel_config=self.kernel_config,
-                use_full_kernel=True,
+                use_full_kernel=False,
             )
+
             alpha_all, _ = krr_linsys.solve(
                 solver_config=krr_solver_config, W_init=torch.zeros_like(krr_linsys.B)
             )
