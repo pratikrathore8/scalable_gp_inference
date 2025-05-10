@@ -3,9 +3,9 @@
 #SBATCH --job-name=gp_inference_job      # Job name
 #SBATCH --output=gp_inference_%j.out     # Standard output and error log
 #SBATCH --error=gp_inference_%j.err      # Error log
-#SBATCH --time=6:00:00                  # Time limit hrs:min:sec
+#SBATCH --time=00:30:00                  # Time limit hrs:min:sec
 #SBATCH --partition=gpu                  # Partition to submit to
-#SBATCH --gres=gpu:4                     # Request 4 GPUs (adjustable via num_gpus argument)
+#SBATCH --gres=gpu:1                     # Request 4 GPUs (adjustable via num_gpus argument)
 #SBATCH --constraint=GPU_SKU:L40S        # Ensure use of L40S GPUs
 #SBATCH --cpus-per-task=4                # Number of CPU cores per GPU
 #SBATCH --nodes=1                        # Number of nodes
@@ -31,7 +31,7 @@ fi
 export PYTHONPATH=$(pwd)
 
 # Define datasets
-datasets=(acsincome yolanda malonaldehyde benzene 3droad song houseelec)
+datasets=(3droad)
 
 # Check if the seed and number of GPUs were provided
 if [ $# -ne 2 ]; then
