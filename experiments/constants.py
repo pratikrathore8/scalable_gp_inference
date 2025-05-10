@@ -131,6 +131,7 @@ OPT_MAX_PASSES_MAP = {
     "song": 50,
     "houseelec": 20,
 }
+OPT_MAX_PASSES_TIMING = 3
 OPT_NUM_BLOCKS_MAP = {
     "ESR2": 100,
     "F2": 100,

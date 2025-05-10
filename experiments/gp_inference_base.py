@@ -138,6 +138,11 @@ def parse_arguments():
         default=None,
         help="Averaging parameter for the optimizer -- SDD only",
     )
+    parser.add_argument(
+        "--timing",
+        action="store_true",
+        help="Set by gp_inference_dataset_seed.py to adjust wandb project",
+    )
     return parser.parse_args()
 
 
@@ -191,8 +196,12 @@ def main():
         devices=set(args.devices),
     )
 
+    wandb_project = f"{LOGGING_WANDB_PROJECT_BASE_NAME}_{args.dataset}"
+    if args.timing:
+        wandb_project += "_timing"
+
     wandb_init_kwargs = {
-        "project": f"{LOGGING_WANDB_PROJECT_BASE_NAME}_{args.dataset}",
+        "project": wandb_project,
         "config": {
             "dataset": args.dataset,
             "ntr": dataset.Xtr.shape[0],

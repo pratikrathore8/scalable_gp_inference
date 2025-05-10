@@ -20,6 +20,7 @@ from experiments.constants import (
     OPT_SDD_THETA_UNSCALED,
     OPT_SDD_PRECISIONS,
     OPT_MAX_PASSES_MAP,
+    OPT_MAX_PASSES_TIMING,
     OPT_NUM_BLOCKS_MAP,
     LOGGING_USE_WANDB,
     LOGGING_EVAL_FREQ_MAP,
@@ -176,9 +177,13 @@ def _get_base_command(args):
     cmd.extend(
         [
             "--opt_max_passes",
-            str(OPT_MAX_PASSES_MAP[args.dataset]),
+            str(OPT_MAX_PASSES_MAP[args.dataset])
+            if not args.timing
+            else str(OPT_MAX_PASSES_TIMING),
         ]
     )
+    if args.timing:
+        cmd.append("--timing")
 
     return cmd
 
@@ -191,6 +196,9 @@ def main():
     parser.add_argument("--dataset", type=str, help="Dataset name")
     parser.add_argument("--seed", type=int, help="The random seed to use")
     parser.add_argument("--devices", type=str, nargs="+", help="Device IDs")
+    parser.add_argument(
+        "--timing", action="store_true", help="Whether to run timing experiments"
+    )
     args = parser.parse_args()
 
     # Get the base command
