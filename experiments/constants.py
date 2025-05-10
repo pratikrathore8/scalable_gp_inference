@@ -104,11 +104,13 @@ GP_INFERENCE_USE_FULL_KERNEL_MAP = {
 
 # Optimizer parameters for GP inference
 OPT_TYPES = ["sap", "sdd", "pcg"]
+OPT_TYPES_TIMING = ["sap"]
 OPT_ATOL = 1e-16  # So small that nothing terminates early
 OPT_RTOL = 1e-16  # So small that nothing terminates early
 OPT_RANK = 100
 OPT_DAMPING = "adaptive"
 OPT_SAP_PRECONDITIONERS = ["nystrom", "identity"]
+OPT_SAP_PRECONDITIONERS_TIMING = ["nystrom"]
 OPT_SAP_PRECISIONS = ["float32"]
 OPT_PCG_PRECONDITIONERS = ["nystrom"]
 OPT_PCG_PRECISIONS = ["float32"]  # ["float32", "float64"]

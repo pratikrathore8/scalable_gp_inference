@@ -10,9 +10,11 @@ from experiments.constants import (
     GP_INFERENCE_NUM_RANDOM_FEATURES,
     GP_INFERENCE_USE_FULL_KERNEL_MAP,
     OPT_TYPES,
+    OPT_TYPES_TIMING,
     OPT_RANK,
     OPT_DAMPING,
     OPT_SAP_PRECONDITIONERS,
+    OPT_SAP_PRECONDITIONERS_TIMING,
     OPT_SAP_PRECISIONS,
     OPT_PCG_PRECONDITIONERS,
     OPT_PCG_PRECISIONS,
@@ -88,7 +90,7 @@ def _get_pcg_extensions(eval_freq_map):
     return extensions
 
 
-def _get_sap_extensions(dataset, eval_freq_map):
+def _get_sap_extensions(dataset, eval_freq_map, preconditioners):
     base_extension = [
         "--eval_freq",
         str(eval_freq_map["sap"]),
@@ -97,7 +99,7 @@ def _get_sap_extensions(dataset, eval_freq_map):
         "--opt_num_blocks",
         str(OPT_NUM_BLOCKS_MAP[dataset]),
     ]
-    precond_extensions = _get_precond_extensions(OPT_SAP_PRECONDITIONERS)
+    precond_extensions = _get_precond_extensions(preconditioners)
     precision_extensions = _get_precision_extensions(OPT_SAP_PRECISIONS)
     # Go through each precision and preconditioner extension
     # and add the base extension to the start of each precision extension
@@ -212,11 +214,19 @@ def main():
 
     # Get the extensions for all the optimizers
     opt_extensions = {}
-    for opt_type in OPT_TYPES:
+    opt_types = OPT_TYPES if not args.timing else OPT_TYPES_TIMING
+    for opt_type in opt_types:
         if opt_type == "pcg":
             opt_extensions[opt_type] = _get_pcg_extensions(eval_freq_map)
         elif opt_type == "sap":
-            opt_extensions[opt_type] = _get_sap_extensions(args.dataset, eval_freq_map)
+            sap_preconditioners = (
+                OPT_SAP_PRECONDITIONERS
+                if not args.timing
+                else OPT_SAP_PRECONDITIONERS_TIMING
+            )
+            opt_extensions[opt_type] = _get_sap_extensions(
+                args.dataset, eval_freq_map, sap_preconditioners
+            )
         elif opt_type == "sdd":
             opt_extensions[opt_type] = _get_sdd_extensions(args.dataset, eval_freq_map)
         else:
