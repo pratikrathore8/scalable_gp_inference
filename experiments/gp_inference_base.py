@@ -132,6 +132,12 @@ def parse_arguments():
         default=None,
         help="Step size for the optimizer -- SDD only",
     )
+    parser.add_argument(
+        "--theta_unscaled",
+        type=float,
+        default=None,
+        help="Averaging parameter for the optimizer -- SDD only",
+    )
     return parser.parse_args()
 
 
@@ -161,6 +167,7 @@ def main():
         damping=args.opt_damping,
         blocks=args.opt_num_blocks,
         step_size_unscaled=args.opt_step_size_unscaled,
+        theta_unscaled=args.theta_unscaled,
         ntr=dataset.Xtr.shape[0],
         device=args.devices[0],
     )
@@ -200,6 +207,7 @@ def main():
             "max_passes": args.opt_max_passes,
             "opt_num_blocks": args.opt_num_blocks,
             "opt_step_size_unscaled": args.opt_step_size_unscaled,
+            "theta_unscaled": args.theta_unscaled,
             "use_full_kernel": args.use_full_kernel,
             "eval_freq": args.eval_freq,
         },

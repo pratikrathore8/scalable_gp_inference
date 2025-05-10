@@ -4,7 +4,7 @@ import torch
 
 from .hparam_training import GPHparams
 from .kernel_linsys import KernelLinSys
-from .random_features import RFConfig, get_random_features
+from .random_features import RFConfig, RandomFeatures, get_prior_samples
 from .utils import _get_kernel_linop, _safe_unsqueeze, _get_r2
 
 
@@ -17,76 +17,75 @@ from .utils import _get_kernel_linop, _safe_unsqueeze, _get_r2
 class GPInference:
     def __init__(
         self,
-        Xtr: torch.Tensor,
-        ytr: torch.Tensor,
-        Xtst: torch.Tensor,
-        ytst: torch.Tensor,
         kernel_type: str,
         kernel_hparams: GPHparams,
+        Xtr: torch.Tensor,
+        ytr: torch.Tensor,
+        Xtst: torch.Tensor | None = None,
+        ytst: torch.Tensor | None = None,
         num_posterior_samples: int = 0,
-        rf_config: RFConfig = RFConfig(num_features=0),
+        rf_config: RFConfig = RFConfig(num_features=0, regenerate=True),
         distributed: bool = False,
         devices: set[torch.device] | None = None,
     ):
         # NOTE(pratik): this class assumes a zero-mean GP prior
-        self.Xtr = Xtr
-        self.ytr = ytr
-        self.Xtst = Xtst
-        self.ytst = ytst
+        # Extract kernel information
         self.kernel_type = kernel_type
         self.kernel_config = KernelConfig(
             const_scaling=kernel_hparams.signal_variance,
             lengthscale=kernel_hparams.kernel_lengthscale,
         )
         self.noise_variance = kernel_hparams.noise_variance
+
+        # Extract datasets
+        self.Xtr = Xtr
+        self.ytr = ytr
+        self.Xtst = Xtst
+        self.ytst = ytst
+
+        # Extract information for posterior sampling
         self.num_posterior_samples = num_posterior_samples
-        self.rf_config = rf_config
-        self.distributed = distributed
-        self.devices = devices
+        # Only make the RandomFeatures object
+        # if the number of random features is positive
+        if rf_config.num_features > 0:
+            self.rf_obj = RandomFeatures(
+                self.kernel_config, self.kernel_type, rf_config
+            )
+        else:
+            self.rf_obj = None
         (
             self.Xtr_prior_samples,
             self.Xtst_prior_samples,
         ) = self._get_approx_prior_samples()
 
+        # Extract information for training
+        self.distributed = distributed
+        self.devices = devices
+
     def _get_approx_prior_samples(self):
-        if self.num_posterior_samples > 0 and self.rf_config.num_features > 0:
-            X = torch.cat((self.Xtr, self.Xtst), dim=0)
-            Xtr_prior_samples = torch.zeros(
-                self.Xtr.shape[0],
+        if self.num_posterior_samples > 0 and self.rf_obj is not None:
+            # Be careful is Xtst is None
+            if self.Xtst is not None:
+                X_in = torch.cat((self.Xtr, self.Xtst), dim=0)
+            else:
+                X_in = self.Xtr
+
+            prior_samples, _ = get_prior_samples(
+                X_in,
+                self.rf_obj,
+                self.noise_variance,
                 self.num_posterior_samples,
-                device=self.Xtr.device,
-                dtype=self.Xtr.dtype,
-            )
-            Xtst_prior_samples = torch.zeros(
-                self.Xtst.shape[0],
-                self.num_posterior_samples,
-                device=self.Xtst.device,
-                dtype=self.Xtst.dtype,
+                return_feature_weights=False,
             )
 
-            # TODO(pratik): vectorize over posterior samples
-            # However, this could lead to higher memory usage
-            for i in range(self.num_posterior_samples):
-                X_featurized = get_random_features(
-                    X,
-                    rf_config=self.rf_config,
-                    kernel_config=self.kernel_config,
-                    kernel_type=self.kernel_type,
+            # Make sure to return None for the test samples if Xtst is None
+            if self.Xtst is not None:
+                return (
+                    prior_samples[: self.Xtr.shape[0]],
+                    prior_samples[self.Xtr.shape[0] :],
                 )
-                w = torch.randn(X_featurized.shape[1], device=X.device, dtype=X.dtype)
-                prior_samples = X_featurized @ w
-                Xtr_prior_samples[:, i] = prior_samples[: self.Xtr.shape[0]] + (
-                    self.noise_variance**0.5
-                ) * torch.randn(
-                    self.Xtr.shape[0], device=self.Xtr.device, dtype=self.Xtr.dtype
-                )
-                Xtst_prior_samples[:, i] = prior_samples[self.Xtr.shape[0] :]
-
-                # Free up memory
-                del X_featurized, prior_samples, w
-                torch.cuda.empty_cache()
-
-            return Xtr_prior_samples, Xtst_prior_samples
+            else:
+                return (prior_samples, None)
         return (None,) * 2
 
     def _get_linsys(self, use_full_kernel: bool):
@@ -169,7 +168,7 @@ class GPInference:
         )
 
         # Compute variances and negative log likelihood using posterior samples
-        if self.Xtr_prior_samples is not None and self.Xtst_prior_samples is not None:
+        if self.Xtst_prior_samples is not None:
             W_diff = _safe_unsqueeze(W[:, 0]) - W[:, 1:]
             test_posterior_samples = self.Xtst_prior_samples + tst_kernel_linop @ W_diff
             test_posterior_samples_mean = test_posterior_samples.mean(

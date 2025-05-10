@@ -62,13 +62,13 @@ _HOUSEELEC = {
 
 _DOWNLOAD_CONFIGS = [
     _DOCKSTRING,
-    # _ACSINCOME,
-    # _YOLANDA,
-    # _MALONALDEHYDE,
-    # _BENZENE,
-    # _3DROAD,
-    # _SONG,
-    # _HOUSEELEC,
+    _ACSINCOME,
+    _YOLANDA,
+    _MALONALDEHYDE,
+    _BENZENE,
+    _3DROAD,
+    _SONG,
+    _HOUSEELEC,
 ]
 
 
