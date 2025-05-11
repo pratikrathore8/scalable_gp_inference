@@ -58,6 +58,6 @@ for dataset in "${datasets[@]}"; do
         selected_gpus="${allocated_gpus[@]:0:$num_gpus}"
 
         # echo "Running for dataset: $dataset with seed: $seed on devices: $selected_gpus using $num_gpus GPUs"
-        python3 experiments/gp_inference_dataset_seed.py --dataset "$dataset" --seed "$seed" --devices "$selected_gpus" --timing
+        python3 experiments/gp_inference_dataset_seed.py --dataset "$dataset" --seed "$seed" --devices ${selected_gpus[@]} --timing
     done
 done
