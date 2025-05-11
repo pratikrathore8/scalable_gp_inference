@@ -28,6 +28,7 @@ from experiments.constants import (
     LOGGING_USE_WANDB,
     LOGGING_EVAL_FREQ_MAP,
     LOGGING_EVAL_FREQ_MAP_TAXI,
+    LOGGING_EVAL_FREQ_MAP_TIMING_TAXI,
 )
 
 
@@ -185,12 +186,7 @@ def _get_base_command(args):
         else:
             max_passes = OPT_MAX_PASSES_TIMING
 
-    cmd.extend(
-        [
-            "--opt_max_passes",
-            str(max_passes)
-        ]
-    )
+    cmd.extend(["--opt_max_passes", str(max_passes)])
     if args.timing:
         cmd.append("--timing")
 
@@ -215,7 +211,10 @@ def main():
 
     # Get the appropriate map for logging eval frequency
     if args.dataset == "taxi":
-        eval_freq_map = LOGGING_EVAL_FREQ_MAP_TAXI
+        if args.timing:
+            eval_freq_map = LOGGING_EVAL_FREQ_MAP_TIMING_TAXI
+        else:
+            eval_freq_map = LOGGING_EVAL_FREQ_MAP_TAXI
     else:
         eval_freq_map = LOGGING_EVAL_FREQ_MAP
 

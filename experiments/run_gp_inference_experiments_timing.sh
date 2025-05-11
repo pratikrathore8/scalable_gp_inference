@@ -3,10 +3,10 @@
 #SBATCH --job-name=gp_inference_job      # Job name
 #SBATCH --output=gp_inference_%j.out     # Standard output and error log
 #SBATCH --error=gp_inference_%j.err      # Error log
-#SBATCH --time=3:00:00                   # Time limit hrs:min:sec
+#SBATCH --time=4:00:00                   # Time limit hrs:min:sec
 #SBATCH --partition=gpu                  # Partition to submit to
 #SBATCH --gres=gpu:4                     # Request 4 GPUs (adjustable via num_gpus argument)
-#SBATCH --gpu_cmode=shared               # Use shared mode so multiprocessing works properly 
+#SBATCH --gpu_cmode=shared               # Use shared mode so multiprocessing works properly
 #SBATCH --constraint=GPU_SKU:L40S        # Ensure use of L40S GPUs
 #SBATCH --cpus-per-task=32               # Number of CPU cores
 #SBATCH --nodes=1                        # Number of nodes

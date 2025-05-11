@@ -134,7 +134,7 @@ OPT_MAX_PASSES_MAP = {
     "houseelec": 20,
 }
 OPT_MAX_PASSES_TIMING = 3
-OPT_MAX_PASSES_TIMING_TAXI = 0.2
+OPT_MAX_PASSES_TIMING_TAXI = 0.02
 OPT_NUM_BLOCKS_MAP = {
     "ESR2": 100,
     "F2": 100,
@@ -163,4 +163,9 @@ LOGGING_EVAL_FREQ_MAP_TAXI = {
     "pcg": 1,
     "sap": 200,
     "sdd": 200,
+}
+LOGGING_EVAL_FREQ_MAP_TIMING_TAXI = {
+    "pcg": None,
+    "sap": 20,
+    "sdd": None,
 }
