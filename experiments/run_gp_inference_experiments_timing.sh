@@ -55,7 +55,7 @@ allocated_gpus=( $(echo $CUDA_VISIBLE_DEVICES | tr ',' ' ') )
 for dataset in "${datasets[@]}"; do
     for num_gpus in $(seq 1 $max_gpus); do
         # Select the correct number of GPUs (create a subset of the allocated GPUs)
-        selected_gpus=$(echo ${allocated_gpus[@]:0:$num_gpus} | tr ' ' ',')
+        selected_gpus="${allocated_gpus[@]:0:$num_gpus}"
 
         # echo "Running for dataset: $dataset with seed: $seed on devices: $selected_gpus using $num_gpus GPUs"
         python3 experiments/gp_inference_dataset_seed.py --dataset "$dataset" --seed "$seed" --devices "$selected_gpus" --timing
