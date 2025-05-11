@@ -37,6 +37,9 @@ OPT_PRECONDITIONERS_DICT = {
     "sap": OPT_SAP_PRECONDITIONERS,
 }
 
+# Move "pcg" to the front of OPT_TYPES to ensure it is the first solver
+OPT_TYPES = ["pcg"] + [opt_type for opt_type in OPT_TYPES if opt_type != "pcg"]
+
 
 def _get_bo_obj(
     bo_config: BayesOptConfig, device: torch.device, dtype: torch.dtype, seed: int
