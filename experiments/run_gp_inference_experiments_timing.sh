@@ -7,7 +7,7 @@
 #SBATCH --partition=gpu                  # Partition to submit to
 #SBATCH --gres=gpu:4                     # Request 4 GPUs (adjustable via num_gpus argument)
 #SBATCH --constraint=GPU_SKU:L40S        # Ensure use of L40S GPUs
-#SBATCH --cpus-per-task=4                # Number of CPU cores per GPU
+#SBATCH --cpus-per-task=8                # Number of CPU cores per GPU
 #SBATCH --nodes=1                        # Number of nodes
 
 # This script is used to run timing experiments on the Stanford Sherlock cluster
