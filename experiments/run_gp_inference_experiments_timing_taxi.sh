@@ -3,7 +3,7 @@
 #SBATCH --job-name=gp_inference_job      # Job name
 #SBATCH --output=gp_inference_%j.out     # Standard output and error log
 #SBATCH --error=gp_inference_%j.err      # Error log
-#SBATCH --time=3:00:00                   # Time limit hrs:min:sec
+#SBATCH --time=18:00:00                  # Time limit hrs:min:sec
 #SBATCH --partition=gpu                  # Partition to submit to
 #SBATCH --gres=gpu:4                     # Request 4 GPUs (adjustable via num_gpus argument)
 #SBATCH --gpu_cmode=shared               # Use shared mode so multiprocessing works properly 
@@ -38,7 +38,7 @@ chmod g+w wandb_pratik  # Ensure group has write permissions and setgid bit
 export WANDB_DIR=$(pwd)/wandb_pratik
 
 # Define datasets
-datasets=(acsincome yolanda malonaldehyde benzene 3droad song houseelec)
+datasets=(taxi)
 
 # Check if the seed and number of GPUs were provided
 if [ $# -ne 2 ]; then

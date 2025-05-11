@@ -99,8 +99,8 @@ def parse_arguments():
     )
     parser.add_argument(
         "--opt_max_passes",
-        type=int,
-        help="Maximum number of passes for the optimizer",
+        type=float,
+        help="Maximum number of passes for the optimizer (can be fractional)",
     )
     parser.add_argument(
         "--opt_preconditioner",

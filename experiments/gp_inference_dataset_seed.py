@@ -23,6 +23,7 @@ from experiments.constants import (
     OPT_SDD_PRECISIONS,
     OPT_MAX_PASSES_MAP,
     OPT_MAX_PASSES_TIMING,
+    OPT_MAX_PASSES_TIMING_TAXI,
     OPT_NUM_BLOCKS_MAP,
     LOGGING_USE_WANDB,
     LOGGING_EVAL_FREQ_MAP,
@@ -176,12 +177,18 @@ def _get_base_command(args):
     if LOGGING_USE_WANDB:
         cmd.append("--log_in_wandb")
 
+    if not args.timing:
+        max_passes = OPT_MAX_PASSES_MAP[args.dataset]
+    else:
+        if args.dataset == "taxi":
+            max_passes = OPT_MAX_PASSES_TIMING_TAXI
+        else:
+            max_passes = OPT_MAX_PASSES_TIMING
+
     cmd.extend(
         [
             "--opt_max_passes",
-            str(OPT_MAX_PASSES_MAP[args.dataset])
-            if not args.timing
-            else str(OPT_MAX_PASSES_TIMING),
+            str(max_passes)
         ]
     )
     if args.timing:

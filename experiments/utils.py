@@ -116,7 +116,7 @@ def none_or_str(value):
 
 def get_solver_config(
     opt_type: str,
-    max_passes: int,
+    max_passes: float,
     preconditioner: str,
     rank: int,
     regularization: float,
@@ -142,9 +142,9 @@ def get_solver_config(
         raise ValueError(f"Unknown preconditioner: {preconditioner}")
 
     if opt_type == "pcg":
-        max_iters = max_passes
+        max_iters = int(max_passes)
     elif opt_type in ["sap", "sdd"]:
-        max_iters = max_passes * blocks
+        max_iters = int(max_passes * blocks)
     else:
         raise ValueError(f"Unknown optimization type: {opt_type}")
 
