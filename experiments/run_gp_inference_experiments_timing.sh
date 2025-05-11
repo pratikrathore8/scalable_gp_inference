@@ -6,8 +6,9 @@
 #SBATCH --time=2:00:00                   # Time limit hrs:min:sec
 #SBATCH --partition=gpu                  # Partition to submit to
 #SBATCH --gres=gpu:4                     # Request 4 GPUs (adjustable via num_gpus argument)
+#SBATCH --gpu_cmode=shared               # Use shared mode so multiprocessing works properly 
 #SBATCH --constraint=GPU_SKU:L40S        # Ensure use of L40S GPUs
-#SBATCH --cpus-per-task=8                # Number of CPU cores per GPU
+#SBATCH --cpus-per-task=32               # Number of CPU cores
 #SBATCH --nodes=1                        # Number of nodes
 
 # This script is used to run timing experiments on the Stanford Sherlock cluster
@@ -29,6 +30,12 @@ fi
 
 # Set the PYTHONPATH to the current directory for module resolution
 export PYTHONPATH=$(pwd)
+
+# Configure WandB to use the custom directory
+# Create the directory if it doesn't exist
+mkdir -p wandb_pratik
+chmod g+w wandb_pratik  # Ensure group has write permissions and setgid bit
+export WANDB_DIR=$(pwd)/wandb_pratik
 
 # Define datasets
 datasets=(acsincome yolanda malonaldehyde benzene 3droad song houseelec)
