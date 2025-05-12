@@ -4,24 +4,28 @@ import numpy as np
 from collections import defaultdict
 import wandb
 import warnings
-from wandb_constants import CONFIG_KEYS, METRIC_PATHS, BAYESIAN_OPT_CONFIG_KEYS, \
-    BAYESIAN_OPT_METRIC_PATHS
+from wandb_constants import (
+    CONFIG_KEYS,
+    METRIC_PATHS,
+    BAYESIAN_OPT_CONFIG_KEYS,
+    BAYESIAN_OPT_METRIC_PATHS,
+)
 
 
 def get_project_runs(
-        entity: str,
-        project: str,
-        filters: Optional[Dict] = None,
-        max_runs: Optional[int] = None
+    entity: str,
+    project: str,
+    filters: Optional[Dict] = None,
+    max_runs: Optional[int] = None,
 ) -> List[wandb.apis.public.Run]:
     """Fetch runs with optional filters and limit."""
     api = wandb.Api()
     try:
-        runs = api.runs(f"{entity}/{project}", order="-created_at",
-                        filters=filters)
+        runs = api.runs(f"{entity}/{project}", order="-created_at", filters=filters)
         if max_runs:
             print(
-                f"Total number of runs found for {project}: {len(runs)} | Keeping {max_runs} runs")
+                f"Total number of runs found for {project}: {len(runs)} | Keeping {max_runs} runs"
+            )
         else:
             print(f"Total number of runs found for {project}: {len(runs)}")
         return runs[:max_runs] if max_runs else runs
@@ -31,17 +35,18 @@ def get_project_runs(
 
 
 def get_run_history(
-        is_bayesian_opt: bool,
-        run: wandb.apis.public.Run,
-        metrics: List[str],
-        x_axis: str = "step",
-        include_config: bool = True,
+    is_bayesian_opt: bool,
+    run: wandb.apis.public.Run,
+    metrics: List[str],
+    x_axis: str = "step",
+    include_config: bool = True,
 ) -> pd.DataFrame:
     """Get history using pre-fetched run object"""
     if is_bayesian_opt:
         try:
-            required_keys = list(set(metrics + ["_step", "iter_time",
-                                                "num_acquisitions"]))
+            required_keys = list(
+                set(metrics + ["_step", "iter_time", "num_acquisitions"])
+            )
             history = run.scan_history(keys=required_keys)
             df = pd.DataFrame(history).astype(float, errors="ignore")
             if "_step" not in df.columns:
@@ -68,11 +73,9 @@ def get_run_history(
             print(f"Error processing run {run.id}: {str(e)}")
             return pd.DataFrame()
 
-
     else:
         try:
-            required_keys = list(
-                set(metrics + ["_step", "cum_time", "iter_time"]))
+            required_keys = list(set(metrics + ["_step", "cum_time", "iter_time"]))
             history = run.scan_history(keys=required_keys)
             df = pd.DataFrame(history).astype(float, errors="ignore")
             df.sort_values("_step", inplace=True)
@@ -111,10 +114,10 @@ def get_run_history(
 
 
 def organize_runs_data(
-        is_bayesian_opt: bool,
-        runs: Iterable[wandb.apis.public.Run],
-        y_metrics: List[str],
-        x_axis: str
+    is_bayesian_opt: bool,
+    runs: Iterable[wandb.apis.public.Run],
+    y_metrics: List[str],
+    x_axis: str,
 ) -> Dict[str, pd.DataFrame]:
     data = {}
     for run in runs:
@@ -124,19 +127,22 @@ def organize_runs_data(
                 df["run_id"] = run.id
                 df["run_name"] = run.name
                 if is_bayesian_opt:
-                    solver = run.config.get(BAYESIAN_OPT_CONFIG_KEYS["SOLVER"],
-                                            "unknown")
+                    solver = run.config.get(
+                        BAYESIAN_OPT_CONFIG_KEYS["SOLVER"], "unknown"
+                    )
                     df[BAYESIAN_OPT_CONFIG_KEYS["SOLVER"]] = solver
                 else:
                     df[CONFIG_KEYS["DATASET"]] = run.config.get(
-                        CONFIG_KEYS["DATASET"], "unknown")
+                        CONFIG_KEYS["DATASET"], "unknown"
+                    )
                     solver = run.config.get(CONFIG_KEYS["SOLVER"], "unknown")
                     df[CONFIG_KEYS["SOLVER"]] = solver
 
                 if solver == "sap":
                     solver_config = run.config.get("solver_config", {})
-                    df[
-                        "sap_precond"] = "Nystrom" if "precond_config" in solver_config else "Identity"
+                    df["sap_precond"] = (
+                        "Nystrom" if "precond_config" in solver_config else "Identity"
+                    )
                 data[run.id] = df
         except Exception as e:
             print(f"Critical error with run {run.id}: {str(e)}")
@@ -144,9 +150,9 @@ def organize_runs_data(
 
 
 def filter_runs(
-        runs: Iterable[wandb.apis.public.Run],
-        require_all: Optional[Dict] = None,
-        require_any: Optional[Dict] = None
+    runs: Iterable[wandb.apis.public.Run],
+    require_all: Optional[Dict] = None,
+    require_any: Optional[Dict] = None,
 ) -> List[wandb.apis.public.Run]:
     """Flexible run filtering with list support"""
     filtered = []
@@ -187,11 +193,11 @@ def filter_runs(
 
 
 def choose_runs(
-        is_bayesian_opt: bool,
-        runs: List[wandb.apis.public.Run],
-        strategy_map: Dict[str, str],
-        metric: str,
-        metric_agg: str
+    is_bayesian_opt: bool,
+    runs: List[wandb.apis.public.Run],
+    strategy_map: Dict[str, str],
+    metric: str,
+    metric_agg: str,
 ) -> List[wandb.apis.public.Run]:
     """
     Select runs using per-solver strategies while preserving unspecified solvers.
@@ -205,12 +211,16 @@ def choose_runs(
     solver_groups = defaultdict(list)
     for run in runs:
         solver = run.config.get(
-            CONFIG_KEYS["SOLVER"] if not is_bayesian_opt else
-            BAYESIAN_OPT_CONFIG_KEYS["SOLVER"])
+            CONFIG_KEYS["SOLVER"]
+            if not is_bayesian_opt
+            else BAYESIAN_OPT_CONFIG_KEYS["SOLVER"]
+        )
         if solver:
             if solver == "sap":
                 solver_config = run.config.get("solver_config", {})
-                precond_type = "Nystrom" if "precond_config" in solver_config else "Identity"
+                precond_type = (
+                    "Nystrom" if "precond_config" in solver_config else "Identity"
+                )
                 solver_groups[(solver, precond_type)].append(run)
             else:
                 solver_groups[solver].append(run)
@@ -222,12 +232,10 @@ def choose_runs(
             solver_name, precond_type = solver
             strategy = strategy_map.get(solver_name, None)
             label = f"{solver_name} ({precond_type})"
-            print(
-                f"Applying '{strategy}' selection for {label} ({len(s_runs)} runs)")
+            print(f"Applying '{strategy}' selection for {label} ({len(s_runs)} runs)")
         else:
             strategy = strategy_map.get(solver, None)
-            print(
-                f"Applying '{strategy}' selection for {solver} ({len(s_runs)} runs)")
+            print(f"Applying '{strategy}' selection for {solver} ({len(s_runs)} runs)")
 
         if strategy == "latest":
             selected.append(max(s_runs, key=lambda r: r.created_at))
@@ -251,8 +259,7 @@ def choose_runs(
                         val = df[metric].iloc[-1]
 
                     if not np.isfinite(val):
-                        print(
-                            f"Skipping run {run.id} - invalid metric value: {val}")
+                        print(f"Skipping run {run.id} - invalid metric value: {val}")
                         continue
 
                     metrics.append((val, run))
@@ -262,9 +269,11 @@ def choose_runs(
                     continue
 
             if metrics:
-                if metric in {METRIC_PATHS["TEST_RMSE"],
-                              METRIC_PATHS["POSTERIOR_NLL"],
-                              METRIC_PATHS["POSTERIOR_MEAN_NLL"]}:
+                if metric in {
+                    METRIC_PATHS["TEST_RMSE"],
+                    METRIC_PATHS["POSTERIOR_NLL"],
+                    METRIC_PATHS["POSTERIOR_MEAN_NLL"],
+                }:
                     best_run = min(metrics, key=lambda x: x[0])[1]
                 else:
                     best_run = max(metrics, key=lambda x: x[0])[1]
@@ -276,11 +285,11 @@ def choose_runs(
 
 
 def choose_and_aggregate_runs(
-        is_bayesian_opt: bool,
-        runs: List[wandb.apis.public.Run],
-        y_metrics: List[str],
-        num_seeds: int,
-        sort_metric: str,
+    is_bayesian_opt: bool,
+    runs: List[wandb.apis.public.Run],
+    y_metrics: List[str],
+    num_seeds: int,
+    sort_metric: str,
 ) -> Dict[str, pd.DataFrame]:
     """
     For plotting errorbars only. Takes the top (num_seeds) number of filtered runs, and for each metric, extracts the mean and std.
@@ -290,21 +299,25 @@ def choose_and_aggregate_runs(
     solver_groups = defaultdict(list)
     for run in runs:
         solver = run.config.get(
-            CONFIG_KEYS["SOLVER"] if not is_bayesian_opt else
-            BAYESIAN_OPT_CONFIG_KEYS["SOLVER"])
+            CONFIG_KEYS["SOLVER"]
+            if not is_bayesian_opt
+            else BAYESIAN_OPT_CONFIG_KEYS["SOLVER"]
+        )
         if solver:
             if solver == "sap":
                 solver_config = run.config.get("solver_config", {})
-                precond_type = "Nystrom" if "precond_config" in solver_config else "Identity"
+                precond_type = (
+                    "Nystrom" if "precond_config" in solver_config else "Identity"
+                )
                 solver_groups[(solver, precond_type)].append(run)
             else:
                 solver_groups[solver].append(run)
 
     grouped_runs = {}
     for solver, s_runs in solver_groups.items():
-        label = (f"{solver[0]} ({solver[1]})"
-                 if isinstance(solver, tuple)
-                 else str(solver))
+        label = (
+            f"{solver[0]} ({solver[1]})" if isinstance(solver, tuple) else str(solver)
+        )
         grouped_runs[label] = s_runs
 
     aggregated: dict[str, pd.DataFrame] = {}
@@ -324,9 +337,13 @@ def choose_and_aggregate_runs(
 
             scored: list[tuple[float, wandb.apis.public.Run]] = []
             for r in runs:
-                df = get_run_history(is_bayesian_opt, r, [use_metric],
-                                     x_axis="datapasses",
-                                     include_config=False)
+                df = get_run_history(
+                    is_bayesian_opt,
+                    r,
+                    [use_metric],
+                    x_axis="datapasses",
+                    include_config=False,
+                )
                 if df.empty or not np.isfinite(df[use_metric].iloc[-1]):
                     continue
                 scored.append((df[use_metric].iloc[-1], r))
@@ -337,9 +354,13 @@ def choose_and_aggregate_runs(
         records = {m: [] for m in y_metrics}
 
         for run in runs:
-            df = get_run_history(is_bayesian_opt, run, y_metrics,
-                                 x_axis="datapasses",
-                                 include_config=False)
+            df = get_run_history(
+                is_bayesian_opt,
+                run,
+                y_metrics,
+                x_axis="datapasses",
+                include_config=False,
+            )
             if df.empty:
                 continue
             # take the final value
@@ -349,13 +370,9 @@ def choose_and_aggregate_runs(
         if not all(records[m] for m in y_metrics):  # skip empty sets
             continue
 
-        stats = {
-                    f"{m}_mean": np.mean(records[m])
-                    for m in y_metrics
-                } | {
-                    f"{m}_std": np.std(records[m], ddof=1)
-                    for m in y_metrics
-                }
+        stats = {f"{m}_mean": np.mean(records[m]) for m in y_metrics} | {
+            f"{m}_std": np.std(records[m], ddof=1) for m in y_metrics
+        }
 
         stats["x_value"] = 0
         aggregated[label] = pd.DataFrame([stats])
@@ -364,13 +381,13 @@ def choose_and_aggregate_runs(
 
 
 def aggregate_runs_with_stats(
-        is_bayesian_opt: bool,
-        runs: List[wandb.apis.public.Run],
-        y_metrics: List[str],
-        x_axis: str,
-        num_runs: int,
-        sort_metric: str = None,
-        group_by: List[str] = None
+    is_bayesian_opt: bool,
+    runs: List[wandb.apis.public.Run],
+    y_metrics: List[str],
+    x_axis: str,
+    num_runs: int,
+    sort_metric: str = None,
+    group_by: List[str] = None,
 ) -> Dict[str, Dict[str, pd.DataFrame]]:
     """
     Aggregates runs by solver (and optional grouping variables) to calculate mean and std.
@@ -398,24 +415,28 @@ def aggregate_runs_with_stats(
 
     for run in runs:
         try:
-            df = get_run_history(is_bayesian_opt, run,
-                                 [sort_metric] + [m for m in y_metrics if
-                                                  m != sort_metric],
-                                 x_axis=x_axis)
+            df = get_run_history(
+                is_bayesian_opt,
+                run,
+                [sort_metric] + [m for m in y_metrics if m != sort_metric],
+                x_axis=x_axis,
+            )
 
             if df.empty or sort_metric not in df.columns:
                 print(
-                    f"Warning: Run {run.id} missing sort metric {sort_metric}, skipping")
+                    f"Warning: Run {run.id} missing sort metric {sort_metric}, skipping"
+                )
                 continue
 
             run_config = {
-                CONFIG_KEYS["SOLVER"]: run.config.get(CONFIG_KEYS["SOLVER"],
-                                                      "unknown")}
+                CONFIG_KEYS["SOLVER"]: run.config.get(CONFIG_KEYS["SOLVER"], "unknown")
+            }
 
             if run_config[CONFIG_KEYS["SOLVER"]] == "sap":
                 solver_config = run.config.get("solver_config", {})
-                run_config[
-                    "precond_type"] = "nystrom" if "precond_config" in solver_config else "identity"
+                run_config["precond_type"] = (
+                    "nystrom" if "precond_config" in solver_config else "identity"
+                )
 
             for key in group_by:
                 config_key = CONFIG_KEYS.get(key, key)
@@ -438,7 +459,7 @@ def aggregate_runs_with_stats(
             if sort_metric in {
                 METRIC_PATHS["TEST_RMSE"],
                 METRIC_PATHS["POSTERIOR_NLL"],
-                METRIC_PATHS["POSTERIOR_MEAN_NLL"]
+                METRIC_PATHS["POSTERIOR_MEAN_NLL"],
             }:
                 score = df[sort_metric].iloc[-1]
                 better_than = lambda x, y: x < y
@@ -448,7 +469,8 @@ def aggregate_runs_with_stats(
 
             if not np.isfinite(score):
                 print(
-                    f"Warning: Run {run.id} has invalid {sort_metric} value: {score}, skipping")
+                    f"Warning: Run {run.id} has invalid {sort_metric} value: {score}, skipping"
+                )
                 continue
 
             run_data[run.id] = (score, df)
@@ -473,16 +495,17 @@ def aggregate_runs_with_stats(
 
         if actual_num_runs < num_runs:
             print(
-                f"Warning: Group {group_key} has only {actual_num_runs} runs (requested {num_runs})")
+                f"Warning: Group {group_key} has only {actual_num_runs} runs (requested {num_runs})"
+            )
 
-        selected_dfs = [run_data[run_id][1] for run_id in selected_run_ids if
-                        run_id in run_data]
+        selected_dfs = [
+            run_data[run_id][1] for run_id in selected_run_ids if run_id in run_data
+        ]
 
         if not selected_dfs:
             continue
 
-        all_x = sorted(
-            set().union(*[set(df["x_value"]) for df in selected_dfs]))
+        all_x = sorted(set().union(*[set(df["x_value"]) for df in selected_dfs]))
 
         aligned_dfs = []
         for df in selected_dfs:
@@ -496,18 +519,20 @@ def aggregate_runs_with_stats(
                         df["x_value"],
                         df[metric],
                         left=df[metric].iloc[0],
-                        right=df[metric].iloc[-1]
+                        right=df[metric].iloc[-1],
                     )
-                    new_df[metric] = pd.Series(
-                        interp_vals).ffill().bfill()  # Fill any remaining NaNs
+                    new_df[metric] = (
+                        pd.Series(interp_vals).ffill().bfill()
+                    )  # Fill any remaining NaNs
             aligned_dfs.append(new_df)
 
         mean_df = pd.DataFrame({"x_value": all_x})
         std_df = pd.DataFrame({"x_value": all_x})
 
         for metric in y_metrics:
-            values = np.array([df[metric].values for df in aligned_dfs if
-                               metric in df.columns])
+            values = np.array(
+                [df[metric].values for df in aligned_dfs if metric in df.columns]
+            )
             if values.size == 0:
                 continue
 
@@ -516,7 +541,7 @@ def aggregate_runs_with_stats(
                 mean_df[metric] = np.nanmean(values, axis=0)
                 std_df[metric] = np.nanstd(values, axis=0, ddof=1)
 
-        solver_parts = group_key.split('-')
+        solver_parts = group_key.split("-")
         solver = solver_parts[0]
         mean_df[CONFIG_KEYS["SOLVER"]] = solver
         std_df[CONFIG_KEYS["SOLVER"]] = solver
@@ -526,15 +551,17 @@ def aggregate_runs_with_stats(
             std_df["sap_precond"] = solver_parts[1].capitalize()
 
         if CONFIG_KEYS["DATASET"] in selected_dfs[0].columns:
-            mean_df[CONFIG_KEYS["DATASET"]] = \
-            selected_dfs[0][CONFIG_KEYS["DATASET"]].iloc[0]
-            std_df[CONFIG_KEYS["DATASET"]] = \
-            selected_dfs[0][CONFIG_KEYS["DATASET"]].iloc[0]
+            mean_df[CONFIG_KEYS["DATASET"]] = selected_dfs[0][
+                CONFIG_KEYS["DATASET"]
+            ].iloc[0]
+            std_df[CONFIG_KEYS["DATASET"]] = selected_dfs[0][
+                CONFIG_KEYS["DATASET"]
+            ].iloc[0]
 
         aggregated_data[group_key] = {
             "mean": mean_df,
             "std": std_df,
-            "num_runs": actual_num_runs
+            "num_runs": actual_num_runs,
         }
 
     return aggregated_data

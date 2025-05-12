@@ -10,24 +10,21 @@ DATASETS = [
     "taxi",
     "3droad",
     "song",
-    "houseelec"
-    ]
+    "houseelec",
+]
 
 
 METRIC_PATHS = {
     # "STEP": "_step",
     # "CUM_TIME": "cum_time",
     # "ITER_TIME": "iter_time",
-
     "TEST_RMSE": "metrics.callback.test_rmse",
     "TEST_R2": "metrics.callback.test_r2",
     "POSTERIOR_NLL": "metrics.callback.test_posterior_samples_nll",
     "POSTERIOR_MEAN_NLL": "metrics.callback.test_posterior_samples_mean_nll",
-
     "POSTERIOR_MEAN": "metrics.callback.test_posterior_samples_mean",
-    "POSTERIOR_VAR": "metrics.callback.test_posterior_samples_var"
+    "POSTERIOR_VAR": "metrics.callback.test_posterior_samples_var",
 }
-
 
 
 CONFIG_KEYS = {
@@ -39,7 +36,7 @@ CONFIG_KEYS = {
     "NUM_TEST": "ntst",
     "NUM_SAMPLES": "num_posterior_samples",
     "BLOCK_SIZE": "solver_config.blk_sz",
-    "MAX_ITERS": "solver_config.max_iters"
+    "MAX_ITERS": "solver_config.max_iters",
 }
 
 STRATEGY_MAP = {
@@ -58,15 +55,11 @@ HPARAM_LABELS = {
     "pcg": ["precond", "r"],
 }
 
-X_AXIS_OPTIONS = {
-    "STEP": "iters",
-    "TIME": "time",
-    "DATAPASSES": "datapasses"
-}
+X_AXIS_OPTIONS = {"STEP": "iters", "TIME": "time", "DATAPASSES": "datapasses"}
 
-#------------------------------------------------------------
+# ------------------------------------------------------------
 # Wandb constants for the Bayesian optimization task
-#------------------------------------------------------------
+# ------------------------------------------------------------
 LENGTHSCALES = ["0.5"]
 
 BAYESIAN_OPT_METRIC_PATHS = {
@@ -90,11 +83,10 @@ BAYESIAN_OPT_CONFIG_KEYS = {
     "MAX_ITERS": "solver_config.max_iters",
     "AQUISITION_METHOD": "ts_config.acquisition_method",
     "EXPLORATION_METHOD": "ts_config.exp_method",
-
 }
 
 BAYESIAN_OPT_X_AXIS_OPTIONS = {
     "STEP": "iters",
     "TIME": "time",
-    "ACQUISITIONS": "num_acquisitions"
+    "ACQUISITIONS": "num_acquisitions",
 }

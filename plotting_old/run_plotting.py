@@ -12,8 +12,8 @@ from wandb_utils import (
     choose_runs,
     organize_runs_data,
     choose_and_aggregate_runs,
-    aggregate_runs_with_stats
-    )
+    aggregate_runs_with_stats,
+)
 from plotting_utils import Plotter
 from wandb_constants import (
     DATASETS,
@@ -25,7 +25,7 @@ from wandb_constants import (
     BAYESIAN_OPT_CONFIG_KEYS,
     BAYESIAN_OPT_METRIC_PATHS,
     BAYESIAN_OPT_X_AXIS_OPTIONS,
-    LENGTHSCALES
+    LENGTHSCALES,
 )
 from plotting_constants import BASE_SAVE_DIR, BAYESIAN_OPT_BASE_SAVE_DIR
 
@@ -39,6 +39,7 @@ class PlottingConfig:
     Configuration class to handle running plotting functions, taking into account the differences between
     Bayesian optimization and other tasks
     """
+
     def __init__(self, is_bayesian_opt: bool):
         self.is_bayesian_opt = is_bayesian_opt
 
@@ -74,7 +75,7 @@ class PlottingConfig:
         else:
             return {
                 self.config_keys["DATASET"]: item,
-                self.config_keys["SOLVER"]: solvers
+                self.config_keys["SOLVER"]: solvers,
             }
 
     def format_item_message(self, item: str, message: str) -> str:
@@ -84,15 +85,16 @@ class PlottingConfig:
             return f"{message} for {item}"
 
 
-def run_plotting(is_bayesian_opt: bool,
-                datasets_or_lengthscales: list[str],
-                solvers: list[str],
-                strategy_map: dict[str, str],
-                y_metrics: list[str],
-                best_strategy_metric: str,
-                best_strategy_metric_agg: str,
-                x_axis_options: dict[str, str]
-                ):
+def run_plotting(
+    is_bayesian_opt: bool,
+    datasets_or_lengthscales: list[str],
+    solvers: list[str],
+    strategy_map: dict[str, str],
+    y_metrics: list[str],
+    best_strategy_metric: str,
+    best_strategy_metric_agg: str,
+    x_axis_options: dict[str, str],
+):
     """Plots for all given datasets/lengthscales, y metrics, and x-axis options."""
 
     config = PlottingConfig(is_bayesian_opt)
@@ -107,8 +109,7 @@ def run_plotting(is_bayesian_opt: bool,
 
         try:
             filtered = filter_runs(
-                runs,
-                require_all=config.get_filter_config(item, solvers)
+                runs, require_all=config.get_filter_config(item, solvers)
             )
         except KeyError as e:
             print(config.format_item_message(item, f"Error filtering: {str(e)}"))
@@ -124,7 +125,7 @@ def run_plotting(is_bayesian_opt: bool,
                 filtered,
                 strategy_map,
                 best_strategy_metric,
-                best_strategy_metric_agg
+                best_strategy_metric_agg,
             )
         except Exception as e:
             print(config.format_item_message(item, f"Error selecting runs: {str(e)}"))
@@ -136,17 +137,20 @@ def run_plotting(is_bayesian_opt: bool,
 
         for x_axis in x_axis_options.values():
             runs_data = organize_runs_data(
-                is_bayesian_opt,
-                selected_runs,
-                y_metrics,
-                x_axis
+                is_bayesian_opt, selected_runs, y_metrics, x_axis
             )
 
             if not runs_data:
-                print(config.format_item_message(item, f"No plottable data (x-axis: {x_axis})"))
+                print(
+                    config.format_item_message(
+                        item, f"No plottable data (x-axis: {x_axis})"
+                    )
+                )
                 continue
 
-            plotter = Plotter(runs_data, aggregated=False, is_bayesian_opt=is_bayesian_opt)
+            plotter = Plotter(
+                runs_data, aggregated=False, is_bayesian_opt=is_bayesian_opt
+            )
 
             save_dir = config.get_save_dir(item)
             save_dir.mkdir(parents=True, exist_ok=True)
@@ -154,13 +158,17 @@ def run_plotting(is_bayesian_opt: bool,
             title = None if is_bayesian_opt else item
 
             for y_metric in y_metrics:
-                y_key = [key for key, value in config.metric_paths.items() if value == y_metric][0]
+                y_key = [
+                    key
+                    for key, value in config.metric_paths.items()
+                    if value == y_metric
+                ][0]
                 plotter.plot_single_metric(
                     y_metric=y_metric,
                     x_axis=x_axis,
                     log_y=True,
                     title=title,
-                    save_path=save_dir / f"{y_key}_{x_axis}_{item}_{TIMESTAMP}"
+                    save_path=save_dir / f"{y_key}_{x_axis}_{item}_{TIMESTAMP}",
                 )
 
             plotter.plot_metric_grid(
@@ -168,7 +176,7 @@ def run_plotting(is_bayesian_opt: bool,
                 x_axis=x_axis,
                 log_y=True,
                 title=title,
-                save_path=save_dir / f"MULTI_METRIC_{x_axis}_{item}_{TIMESTAMP}"
+                save_path=save_dir / f"MULTI_METRIC_{x_axis}_{item}_{TIMESTAMP}",
             )
 
 
@@ -189,7 +197,7 @@ def run_all(is_bayesian_opt: bool | None):
                 y_metrics=[BAYESIAN_OPT_METRIC_PATHS["FN_MAX"]],
                 best_strategy_metric=BAYESIAN_OPT_METRIC_PATHS["FN_MAX"],
                 best_strategy_metric_agg="last",
-                x_axis_options=BAYESIAN_OPT_X_AXIS_OPTIONS
+                x_axis_options=BAYESIAN_OPT_X_AXIS_OPTIONS,
             )
         else:
             run_plotting(
@@ -197,10 +205,13 @@ def run_all(is_bayesian_opt: bool | None):
                 datasets_or_lengthscales=DATASETS,
                 solvers=SOLVERS,
                 strategy_map=STRATEGY_MAP,
-                y_metrics=[METRIC_PATHS["TEST_RMSE"], METRIC_PATHS["POSTERIOR_MEAN_NLL"]],
+                y_metrics=[
+                    METRIC_PATHS["TEST_RMSE"],
+                    METRIC_PATHS["POSTERIOR_MEAN_NLL"],
+                ],
                 best_strategy_metric=METRIC_PATHS["TEST_RMSE"],
                 best_strategy_metric_agg="last",
-                x_axis_options=X_AXIS_OPTIONS
+                x_axis_options=X_AXIS_OPTIONS,
             )
 
     if is_bayesian_opt is None:
@@ -210,12 +221,14 @@ def run_all(is_bayesian_opt: bool | None):
         run_single_task(is_bayesian_opt)
 
 
-def run_errorbars(is_bayesian_opt: bool,
-                  datasets_or_lengthscales: list[str],
-                  solvers: list[str],
-                  y_metrics: list[str],
-                  num_seeds: int,
-                  sort_metric: str):
+def run_errorbars(
+    is_bayesian_opt: bool,
+    datasets_or_lengthscales: list[str],
+    solvers: list[str],
+    y_metrics: list[str],
+    num_seeds: int,
+    sort_metric: str,
+):
     """Plots error bars for the given datasets/lengthscales, y metrics, and solvers for a given number of random seeds."""
 
     config = PlottingConfig(is_bayesian_opt)
@@ -230,8 +243,7 @@ def run_errorbars(is_bayesian_opt: bool,
 
         try:
             filtered = filter_runs(
-                runs,
-                require_all=config.get_filter_config(item, solvers)
+                runs, require_all=config.get_filter_config(item, solvers)
             )
         except KeyError as e:
             print(config.format_item_message(item, f"Error filtering: {str(e)}"))
@@ -242,7 +254,9 @@ def run_errorbars(is_bayesian_opt: bool,
             continue
 
         try:
-            agg_data = choose_and_aggregate_runs(is_bayesian_opt, filtered, y_metrics, num_seeds, sort_metric)
+            agg_data = choose_and_aggregate_runs(
+                is_bayesian_opt, filtered, y_metrics, num_seeds, sort_metric
+            )
         except Exception as e:
             print(config.format_item_message(item, f"Error selecting runs: {str(e)}"))
             continue
@@ -251,7 +265,9 @@ def run_errorbars(is_bayesian_opt: bool,
             print(config.format_item_message(item, "No selected runs"))
             continue
 
-        bar_plotter = Plotter(agg_data, aggregated=True, is_bayesian_opt=is_bayesian_opt)
+        bar_plotter = Plotter(
+            agg_data, aggregated=True, is_bayesian_opt=is_bayesian_opt
+        )
 
         save_dir = config.get_save_dir(item)
         save_dir.mkdir(parents=True, exist_ok=True)
@@ -259,11 +275,13 @@ def run_errorbars(is_bayesian_opt: bool,
         title = None if is_bayesian_opt else item
 
         for y_metric in y_metrics:
-            y_key = [key for key, value in config.metric_paths.items() if value == y_metric][0]
+            y_key = [
+                key for key, value in config.metric_paths.items() if value == y_metric
+            ][0]
             bar_plotter.plot_errorbars(
                 metric=y_metric,
                 title=title,
-                save_path=save_dir / f"ERRORBAR_{y_key}_{item}_{TIMESTAMP}"
+                save_path=save_dir / f"ERRORBAR_{y_key}_{item}_{TIMESTAMP}",
             )
 
 
@@ -275,7 +293,7 @@ def run_with_errorbands(
     x_axis_options: dict[str, str],
     num_runs: int,
     sort_metric: str = None,
-    group_by: list[str] = None
+    group_by: list[str] = None,
 ):
     """
     Plot metrics with error bands from multiple runs, using the top performing runs.
@@ -294,24 +312,30 @@ def run_with_errorbands(
         runs = get_project_runs(ENTITY, project)
 
         if not runs:
-            print(config.format_item_message(item, f"No {task_type} runs available") + " on W&B")
+            print(
+                config.format_item_message(item, f"No {task_type} runs available")
+                + " on W&B"
+            )
             continue
 
         try:
-            filtered = filter_runs(
-                runs,
-                require_all={CONFIG_KEYS["SOLVER"]: solvers}
-            )
+            filtered = filter_runs(runs, require_all={CONFIG_KEYS["SOLVER"]: solvers})
         except KeyError as e:
             print(f"Error filtering: {str(e)}")
             continue
 
         if not filtered:
-            print(config.format_item_message(item, f"No valid {task_type} runs after filtering"))
+            print(
+                config.format_item_message(
+                    item, f"No valid {task_type} runs after filtering"
+                )
+            )
             continue
 
         for x_axis_key, x_axis in x_axis_options.items():
-            print(f"Processing {config.format_item_message(item, f'{task_type}')} with x-axis {x_axis_key}...")
+            print(
+                f"Processing {config.format_item_message(item, f'{task_type}')} with x-axis {x_axis_key}..."
+            )
 
             aggregated_data = aggregate_runs_with_stats(
                 is_bayesian_opt,
@@ -320,11 +344,15 @@ def run_with_errorbands(
                 x_axis,
                 num_runs=num_runs,
                 sort_metric=sort_metric,
-                group_by=group_by
+                group_by=group_by,
             )
 
             if not aggregated_data:
-                print(config.format_item_message(item, f"No valid groups {task_type} (x-axis: {x_axis})"))
+                print(
+                    config.format_item_message(
+                        item, f"No valid groups {task_type} (x-axis: {x_axis})"
+                    )
+                )
                 continue
 
             plotter = Plotter({}, aggregated=False, is_bayesian_opt=is_bayesian_opt)
@@ -336,14 +364,17 @@ def run_with_errorbands(
             title = None
             prefix = "Bayesian" if is_bayesian_opt else item
 
-            for y_key, y_metric in [(k, v) for k, v in config.metric_paths.items() if v in y_metrics]:
+            for y_key, y_metric in [
+                (k, v) for k, v in config.metric_paths.items() if v in y_metrics
+            ]:
                 plotter.plot_with_errorbands(
                     aggregated_data,
                     y_metric=y_metric,
                     x_axis=x_axis,
                     log_y=True,
                     title=title,
-                    save_path=save_dir / f"ERRORBAND_{prefix}_{y_key}_{x_axis_key}_{timestamp}"
+                    save_path=save_dir
+                    / f"ERRORBAND_{prefix}_{y_key}_{x_axis_key}_{timestamp}",
                 )
 
             plotter.plot_metric_grid_with_errorbands(
@@ -352,10 +383,13 @@ def run_with_errorbands(
                 x_axis=x_axis,
                 log_y=True,
                 title=title,
-                save_path=save_dir / f"ERRORBAND_MULTI_{prefix}_{x_axis_key}_{timestamp}"
+                save_path=save_dir
+                / f"ERRORBAND_MULTI_{prefix}_{x_axis_key}_{timestamp}",
             )
 
-            print(f"Completed {config.format_item_message(item, f'{task_type}')} with x-axis {x_axis_key}")
+            print(
+                f"Completed {config.format_item_message(item, f'{task_type}')} with x-axis {x_axis_key}"
+            )
 
 
 # Example Usage
@@ -368,7 +402,7 @@ if __name__ == "__main__":
         y_metrics=[METRIC_PATHS["TEST_RMSE"], METRIC_PATHS["POSTERIOR_MEAN_NLL"]],
         best_strategy_metric=METRIC_PATHS["TEST_RMSE"],
         best_strategy_metric_agg="last",
-        x_axis_options=X_AXIS_OPTIONS
+        x_axis_options=X_AXIS_OPTIONS,
     )
 
     run_plotting(
@@ -379,7 +413,7 @@ if __name__ == "__main__":
         y_metrics=[BAYESIAN_OPT_METRIC_PATHS["FN_MAX"]],
         best_strategy_metric=BAYESIAN_OPT_METRIC_PATHS["FN_MAX"],
         best_strategy_metric_agg="last",
-        x_axis_options=BAYESIAN_OPT_X_AXIS_OPTIONS
+        x_axis_options=BAYESIAN_OPT_X_AXIS_OPTIONS,
     )
 
     print("\nRunning error band plotting...")
@@ -390,7 +424,7 @@ if __name__ == "__main__":
         y_metrics=[METRIC_PATHS["TEST_RMSE"], METRIC_PATHS["POSTERIOR_MEAN_NLL"]],
         x_axis_options=X_AXIS_OPTIONS,
         num_runs=5,
-        sort_metric=METRIC_PATHS["TEST_RMSE"]
+        sort_metric=METRIC_PATHS["TEST_RMSE"],
     )
 
     run_with_errorbands(
@@ -400,5 +434,5 @@ if __name__ == "__main__":
         y_metrics=[BAYESIAN_OPT_METRIC_PATHS["FN_MAX"]],
         x_axis_options=BAYESIAN_OPT_X_AXIS_OPTIONS,
         num_runs=2,
-        sort_metric=BAYESIAN_OPT_METRIC_PATHS["FN_MAX"]
+        sort_metric=BAYESIAN_OPT_METRIC_PATHS["FN_MAX"],
     )

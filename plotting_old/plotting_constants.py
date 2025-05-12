@@ -1,7 +1,7 @@
 import numpy as np
 
 USE_LATEX: bool = True
-FONTSIZE:  int = 14
+FONTSIZE: int = 14
 EXTENSION: str = "pdf"
 BASE_SAVE_DIR: str = "./plots"
 
@@ -21,7 +21,7 @@ LEGEND_SPECS = {
     "bbox_to_anchor": (0.5, -0.25),
     "ncol": 4,
     "frameon": False,
-    "fontsize": FONTSIZE * 0.7
+    "fontsize": FONTSIZE * 0.7,
 }
 
 OPT_COLORS = {
@@ -50,35 +50,35 @@ MARKERSIZE: int = 4
 ERRORBAND_ALPHA = 0.2
 
 METRIC_AX_PLOT_FNS: dict[str, str] = {
-    "abs_res":                       "semilogy",
-    "rel_res":                       "semilogy",
-    "train_rmse":                    "semilogy",
-    "test_rmse":                     "semilogy",
-    "test_posterior_samples_nll":    "semilogy",
-    "test_posterior_samples_mean":   "plot",
-    "test_posterior_samples_var":    "plot",
+    "abs_res": "semilogy",
+    "rel_res": "semilogy",
+    "train_rmse": "semilogy",
+    "test_rmse": "semilogy",
+    "test_posterior_samples_nll": "semilogy",
+    "test_posterior_samples_mean": "plot",
+    "test_posterior_samples_var": "plot",
 }
 
 
 METRIC_LABELS: dict[str, str] = {
-    "abs_res":                       r"Absolute residual",
-    "rel_res":                       r"Relative residual",
-    "train_rmse":                    r"Train RMSE",
-    "train_posterior_samples_nll":   r"NLL (train samples)",
-    "train_posterior_samples_mean":  r"Train posterior mean",
-    "train_posterior_samples_var":   r"Train posterior variance",
-    "train_mse":                      r"Train MSE",
-    "train_r2":                       r"Train R²",
+    "abs_res": r"Absolute residual",
+    "rel_res": r"Relative residual",
+    "train_rmse": r"Train RMSE",
+    "train_posterior_samples_nll": r"NLL (train samples)",
+    "train_posterior_samples_mean": r"Train posterior mean",
+    "train_posterior_samples_var": r"Train posterior variance",
+    "train_mse": r"Train MSE",
+    "train_r2": r"Train R²",
     "train_posterior_samples_mean_nll": r"NLL (train posterior mean)",
-    "train_posterior_samples_var_nll":  r"NLL (train posterior variance)",
-    "test_rmse":                     r"Test RMSE",
-    "test_posterior_samples_nll":    r"NLL (posterior samples)",
-    "test_posterior_samples_mean":   r"Posterior mean",
-    "test_posterior_samples_var":    r"Posterior variance",
-    "test_r2":                       r"Test R²",
-    "test_mse":                      r"Test MSE",
+    "train_posterior_samples_var_nll": r"NLL (train posterior variance)",
+    "test_rmse": r"Test RMSE",
+    "test_posterior_samples_nll": r"NLL (posterior samples)",
+    "test_posterior_samples_mean": r"Posterior mean",
+    "test_posterior_samples_var": r"Posterior variance",
+    "test_r2": r"Test R²",
+    "test_mse": r"Test MSE",
     "test_posterior_samples_mean_nll": r"NLL (posterior mean)",
-    "test_posterior_samples_var_nll":  r"NLL (posterior variance)"
+    "test_posterior_samples_var_nll": r"NLL (posterior variance)",
 }
 
 
@@ -119,18 +119,18 @@ X_AXIS_TIME_GRACE = 1.02
 SORT_KEYS = ["opt", "accelerated", "sampling_method", "precond_type", "r", "b", "m"]
 
 
-#------------------------------------------------------------
+# ------------------------------------------------------------
 # Plotting constants for the Bayesian optimization task
-#------------------------------------------------------------
+# ------------------------------------------------------------
 
 BAYESIAN_OPT_BASE_SAVE_DIR: str = "./plots/bayesian_optimization"
 
 BAYESIAN_OPT_METRIC_AX_PLOT_FNS: dict[str, str] = {
-    "fn_max":                       "semilogy",
+    "fn_max": "semilogy",
 }
 
 BAYESIAN_OPT_METRIC_LABELS: dict[str, str] = {
-    "fn_max":                       r"Best objective value",
+    "fn_max": r"Best objective value",
 }
 
 
