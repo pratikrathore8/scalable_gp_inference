@@ -10,9 +10,11 @@ from experiments.constants import (
     GP_INFERENCE_NUM_RANDOM_FEATURES,
     GP_INFERENCE_USE_FULL_KERNEL_MAP,
     OPT_TYPES,
+    OPT_TYPES_TIMING,
     OPT_RANK,
     OPT_DAMPING,
     OPT_SAP_PRECONDITIONERS,
+    OPT_SAP_PRECONDITIONERS_TIMING,
     OPT_SAP_PRECISIONS,
     OPT_PCG_PRECONDITIONERS,
     OPT_PCG_PRECISIONS,
@@ -20,10 +22,13 @@ from experiments.constants import (
     OPT_SDD_THETA_UNSCALED,
     OPT_SDD_PRECISIONS,
     OPT_MAX_PASSES_MAP,
+    OPT_MAX_PASSES_TIMING,
+    OPT_MAX_PASSES_TIMING_TAXI,
     OPT_NUM_BLOCKS_MAP,
     LOGGING_USE_WANDB,
     LOGGING_EVAL_FREQ_MAP,
     LOGGING_EVAL_FREQ_MAP_TAXI,
+    LOGGING_EVAL_FREQ_MAP_TIMING_TAXI,
 )
 
 
@@ -87,7 +92,7 @@ def _get_pcg_extensions(eval_freq_map):
     return extensions
 
 
-def _get_sap_extensions(dataset, eval_freq_map):
+def _get_sap_extensions(dataset, eval_freq_map, preconditioners):
     base_extension = [
         "--eval_freq",
         str(eval_freq_map["sap"]),
@@ -96,7 +101,7 @@ def _get_sap_extensions(dataset, eval_freq_map):
         "--opt_num_blocks",
         str(OPT_NUM_BLOCKS_MAP[dataset]),
     ]
-    precond_extensions = _get_precond_extensions(OPT_SAP_PRECONDITIONERS)
+    precond_extensions = _get_precond_extensions(preconditioners)
     precision_extensions = _get_precision_extensions(OPT_SAP_PRECISIONS)
     # Go through each precision and preconditioner extension
     # and add the base extension to the start of each precision extension
@@ -173,12 +178,17 @@ def _get_base_command(args):
     if LOGGING_USE_WANDB:
         cmd.append("--log_in_wandb")
 
-    cmd.extend(
-        [
-            "--opt_max_passes",
-            str(OPT_MAX_PASSES_MAP[args.dataset]),
-        ]
-    )
+    if not args.timing:
+        max_passes = OPT_MAX_PASSES_MAP[args.dataset]
+    else:
+        if args.dataset == "taxi":
+            max_passes = OPT_MAX_PASSES_TIMING_TAXI
+        else:
+            max_passes = OPT_MAX_PASSES_TIMING
+
+    cmd.extend(["--opt_max_passes", str(max_passes)])
+    if args.timing:
+        cmd.append("--timing")
 
     return cmd
 
@@ -191,6 +201,9 @@ def main():
     parser.add_argument("--dataset", type=str, help="Dataset name")
     parser.add_argument("--seed", type=int, help="The random seed to use")
     parser.add_argument("--devices", type=str, nargs="+", help="Device IDs")
+    parser.add_argument(
+        "--timing", action="store_true", help="Whether to run timing experiments"
+    )
     args = parser.parse_args()
 
     # Get the base command
@@ -198,17 +211,28 @@ def main():
 
     # Get the appropriate map for logging eval frequency
     if args.dataset == "taxi":
-        eval_freq_map = LOGGING_EVAL_FREQ_MAP_TAXI
+        if args.timing:
+            eval_freq_map = LOGGING_EVAL_FREQ_MAP_TIMING_TAXI
+        else:
+            eval_freq_map = LOGGING_EVAL_FREQ_MAP_TAXI
     else:
         eval_freq_map = LOGGING_EVAL_FREQ_MAP
 
     # Get the extensions for all the optimizers
     opt_extensions = {}
-    for opt_type in OPT_TYPES:
+    opt_types = OPT_TYPES if not args.timing else OPT_TYPES_TIMING
+    for opt_type in opt_types:
         if opt_type == "pcg":
             opt_extensions[opt_type] = _get_pcg_extensions(eval_freq_map)
         elif opt_type == "sap":
-            opt_extensions[opt_type] = _get_sap_extensions(args.dataset, eval_freq_map)
+            sap_preconditioners = (
+                OPT_SAP_PRECONDITIONERS
+                if not args.timing
+                else OPT_SAP_PRECONDITIONERS_TIMING
+            )
+            opt_extensions[opt_type] = _get_sap_extensions(
+                args.dataset, eval_freq_map, sap_preconditioners
+            )
         elif opt_type == "sdd":
             opt_extensions[opt_type] = _get_sdd_extensions(args.dataset, eval_freq_map)
         else:

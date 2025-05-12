@@ -104,11 +104,13 @@ GP_INFERENCE_USE_FULL_KERNEL_MAP = {
 
 # Optimizer parameters for GP inference
 OPT_TYPES = ["sap", "sdd", "pcg"]
+OPT_TYPES_TIMING = ["sap"]
 OPT_ATOL = 1e-16  # So small that nothing terminates early
 OPT_RTOL = 1e-16  # So small that nothing terminates early
 OPT_RANK = 100
 OPT_DAMPING = "adaptive"
 OPT_SAP_PRECONDITIONERS = ["nystrom", "identity"]
+OPT_SAP_PRECONDITIONERS_TIMING = ["nystrom"]
 OPT_SAP_PRECISIONS = ["float32"]
 OPT_PCG_PRECONDITIONERS = ["nystrom"]
 OPT_PCG_PRECISIONS = ["float32"]  # ["float32", "float64"]
@@ -131,6 +133,8 @@ OPT_MAX_PASSES_MAP = {
     "song": 50,
     "houseelec": 20,
 }
+OPT_MAX_PASSES_TIMING = 3
+OPT_MAX_PASSES_TIMING_TAXI = 0.02
 OPT_NUM_BLOCKS_MAP = {
     "ESR2": 100,
     "F2": 100,
@@ -159,4 +163,9 @@ LOGGING_EVAL_FREQ_MAP_TAXI = {
     "pcg": 1,
     "sap": 200,
     "sdd": 200,
+}
+LOGGING_EVAL_FREQ_MAP_TIMING_TAXI = {
+    "pcg": None,
+    "sap": 20,
+    "sdd": None,
 }
