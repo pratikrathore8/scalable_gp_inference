@@ -2,19 +2,16 @@ from typing import Dict, List
 
 ENTITY = "sketchy-opts"
 
-DATASETS = ["ESR2",
-            "F2",
-            "KIT",
-            "PARP1",
-            "PGR",
-            "acsincome",
-            "yolanda",
-            "malonaldehyde",
-            "benzene",
-            "taxi",
-            "3droad",
-            "song",
-            "houseelec"]
+DATASETS = [
+    "acsincome",
+    "yolanda",
+    "malonaldehyde",
+    "benzene",
+    "taxi",
+    "3droad",
+    "song",
+    "houseelec"
+    ]
 
 
 METRIC_PATHS = {
@@ -30,6 +27,8 @@ METRIC_PATHS = {
     "POSTERIOR_MEAN": "metrics.callback.test_posterior_samples_mean",
     "POSTERIOR_VAR": "metrics.callback.test_posterior_samples_var"
 }
+
+
 
 CONFIG_KEYS = {
     "DATASET": "dataset",
@@ -63,4 +62,39 @@ X_AXIS_OPTIONS = {
     "STEP": "iters",
     "TIME": "time",
     "DATAPASSES": "datapasses"
+}
+
+#------------------------------------------------------------
+# Wandb constants for the Bayesian optimization task
+#------------------------------------------------------------
+LENGTHSCALES = ["0.5"]
+
+BAYESIAN_OPT_METRIC_PATHS = {
+    # "STEP": "_step",
+    # "ITER_TIME": "iter_time",
+    # "RUNTIME": "_runtime",
+    # "TIMESTAMP": "_timestamp",
+    # "ACQUISITIONS": "num_acquisitions",
+    # "FN_ARGMAX": "fn_argmax",
+    "FN_MAX": "fn_max"
+}
+
+BAYESIAN_OPT_CONFIG_KEYS = {
+    "SOLVER": "solver_name",
+    "KERNEL": "bo_config.kernel_type",
+    "KERNEL_CONST_SCALING": "bo_config.kernel_config.const_scaling",
+    "KERNEL_LENGTHSCALE": "bo_config.kernel_config.lengthscale",
+    "MAX_PASSES_PER_ITERATION": "max_passes_per_iter",
+    "NUM_SAMPLES": "num_posterior_samples",
+    "BLOCK_SIZE": "solver_config.blk_sz",
+    "MAX_ITERS": "solver_config.max_iters",
+    "AQUISITION_METHOD": "ts_config.acquisition_method",
+    "EXPLORATION_METHOD": "ts_config.exp_method",
+
+}
+
+BAYESIAN_OPT_X_AXIS_OPTIONS = {
+    "STEP": "iters",
+    "TIME": "time",
+    "ACQUISITIONS": "num_acquisitions"
 }

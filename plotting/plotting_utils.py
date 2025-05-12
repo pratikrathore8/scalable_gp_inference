@@ -9,12 +9,9 @@ import numpy as np
 import warnings, shutil
 
 from wandb_constants import (
-    METRIC_PATHS,
     CONFIG_KEYS,
-    X_AXIS_OPTIONS,
-    SOLVERS,
-    DATASETS,
     HPARAM_LABELS,
+    BAYESIAN_OPT_CONFIG_KEYS
 )
 from plotting_constants import (
     USE_LATEX,
@@ -28,10 +25,13 @@ from plotting_constants import (
     SZ_COL,
     SZ_ROW,
     X_AXIS_LABELS,
-    NAN_REPLACEMENT,
+    ERRORBAND_ALPHA,
     PRECOND_MARKERS,
     TOT_MARKERS,
-    MARKERSIZE
+    MARKERSIZE,
+    BAYESIAN_OPT_METRIC_AX_PLOT_FNS,
+    BAYESIAN_OPT_METRIC_LABELS,
+    BAYESIAN_OPT_X_AXIS_LABELS
 )
 
 if USE_LATEX and not shutil.which("latex"):
@@ -47,18 +47,26 @@ rcParams.update({
 
 
 class Plotter:
-    def __init__(self, runs_data: Dict[str, pd.DataFrame], aggregated: bool):
+    def __init__(self, runs_data: Dict[str, pd.DataFrame], aggregated: bool,
+                 is_bayesian_opt: bool):
         self.runs_data = runs_data
         self.aggregated = aggregated
+        self.is_bayesian_opt = is_bayesian_opt
         if not self.aggregated:
             self._validate_data()
 
     def _validate_data(self):
         """Ensure required config keys exist in all DataFrames"""
-        required_columns = {
-            "x_value", "run_id", "run_name",
-            CONFIG_KEYS["SOLVER"], CONFIG_KEYS["DATASET"]
-        }
+        if self.is_bayesian_opt:
+            required_columns = {
+                "x_value", "run_id", "run_name",
+                CONFIG_KEYS["SOLVER"]
+            }
+        else:
+            required_columns = {
+                "x_value", "run_id", "run_name",
+                CONFIG_KEYS["SOLVER"], CONFIG_KEYS["DATASET"]
+            }
 
         for run_id, df in self.runs_data.items():
             missing = required_columns - set(df.columns)
@@ -68,14 +76,18 @@ class Plotter:
     def _get_solver_config(self, df: pd.DataFrame) -> str:
         """Get solver config with fallback handling"""
         try:
-            solver = df[CONFIG_KEYS["SOLVER"]].iloc[0]
+            solver = df[CONFIG_KEYS["SOLVER"]].iloc[
+                0] if not self.is_bayesian_opt else \
+            df[BAYESIAN_OPT_CONFIG_KEYS["SOLVER"]].iloc[0]
         except KeyError:
             raise ValueError(
                 f"Missing solver config in run {df['run_id'].iloc[0]}. "
                 f"Available columns: {df.columns.tolist()}"
             )
 
-        color_key = df[CONFIG_KEYS["SOLVER"]].iloc[0]
+        color_key = df[CONFIG_KEYS["SOLVER"]].iloc[
+            0] if not self.is_bayesian_opt else \
+        df[BAYESIAN_OPT_CONFIG_KEYS["SOLVER"]].iloc[0]
         precond_type = df.get("sap_precond", pd.Series([""])).iloc[
             0].lower() if color_key == "sap" else ""
 
@@ -105,13 +117,18 @@ class Plotter:
     def _name_y_axis(self, metric_path: str) -> str:
         """Convert metric path to clean label"""
         metric_key = metric_path.split('.')[-1]
-        return METRIC_LABELS.get(metric_key,
-                                 metric_key.replace('_', ' ').title())
+        y_axis_label = (
+            METRIC_LABELS.get(metric_key, metric_key.replace('_', ' ').title())
+            if not self.is_bayesian_opt
+            else BAYESIAN_OPT_METRIC_LABELS.get(metric_key,
+                                                metric_key.replace('_',
+                                                                   ' ').title())
+        )
+        return y_axis_label
 
     def _name_dataset(self, dataset_path: str) -> str:
         """Clean dataset name formatting"""
         return dataset_path.replace("_", " ").title()
-
 
     def plot_errorbars(
             self,
@@ -170,12 +187,11 @@ class Plotter:
         self._save_or_show(fig, save_path)
         return fig, ax
 
-
     def plot_single_metric(
             self,
             y_metric: str,
             x_axis: str,
-            log_y: bool = True,
+            log_y: bool,
             title: Optional[str] = None,
             save_path: Optional[Path] = None,
     ) -> tuple[Figure, Axes]:
@@ -184,25 +200,33 @@ class Plotter:
 
         for run_id, df in self.runs_data.items():
             config = self._get_solver_config(df)
-            color = OPT_COLORS.get(df[CONFIG_KEYS["SOLVER"]].iloc[0], "k")
 
             plot_fn = getattr(ax, METRIC_AX_PLOT_FNS.get(y_metric, "plot"))
             plot_fn(df["x_value"], df[y_metric], label=config["label"],
                     color=config["color"],
                     marker=config["marker"], markersize=MARKERSIZE,
-                    markevery=TOT_MARKERS)
+                    markevery=len(df["x_value"]) // TOT_MARKERS)
 
-        ax.set_xlabel(X_AXIS_LABELS.get(x_axis, x_axis))
+        x_axis_label = (
+            X_AXIS_LABELS.get(x_axis, x_axis) if not self.is_bayesian_opt
+            else BAYESIAN_OPT_X_AXIS_LABELS.get(x_axis, x_axis)
+        )
+
+        ax.set_xlabel(x_axis_label)
         ax.set_ylabel(self._name_y_axis(y_metric))
         ax.legend(**LEGEND_SPECS)
 
         if log_y:
             ax.set_yscale("log")
 
-        if title is None:
+        if title is None and not self.is_bayesian_opt:
             dataset = self._name_dataset(df[CONFIG_KEYS["DATASET"]].iloc[0])
             title = f"{dataset}"
-        ax.set_title(title, fontsize=FONTSIZE*0.9)
+        elif title is None and self.is_bayesian_opt:
+            title = "Bayesian optimization task"
+
+        if title:
+            ax.set_title(title, fontsize=FONTSIZE * 0.9)
 
         self._save_or_show(fig, save_path)
         return fig, ax
@@ -231,29 +255,47 @@ class Plotter:
             ax = axes[idx]
             for run_id, df in self.runs_data.items():
                 config = self._get_solver_config(df)
-                color = OPT_COLORS.get(df[CONFIG_KEYS["SOLVER"]].iloc[0], "k")
+                solver = (
+                    df[CONFIG_KEYS["SOLVER"]].iloc[
+                        0] if not self.is_bayesian_opt
+                    else df[BAYESIAN_OPT_CONFIG_KEYS["SOLVER"]].iloc[0]
+                )
+                color = OPT_COLORS.get(solver, "k")
 
-                plot_fn = getattr(ax, METRIC_AX_PLOT_FNS.get(y_metric, "plot"))
-                plot_fn(df["x_value"], df[y_metric], label=config["label"],
-                        color=config["color"],
-                        marker=config["marker"], markersize=MARKERSIZE,
-                        markevery=TOT_MARKERS)
+                plot_fn = (
+                    getattr(ax, METRIC_AX_PLOT_FNS.get(y_metric,
+                                                       "plot")) if not self.is_bayesian_opt
+                    else getattr(ax,
+                                 BAYESIAN_OPT_METRIC_AX_PLOT_FNS.get(y_metric,
+                                                                     "plot"))
+                )
 
-            ax.set_xlabel(X_AXIS_LABELS.get(x_axis, x_axis))
+                plot_fn(
+                    df["x_value"],
+                    df[y_metric],
+                    label=config["label"],
+                    color=config["color"],
+                    marker=config["marker"],
+                    markersize=MARKERSIZE,
+                    markevery=len(df["x_value"]) // TOT_MARKERS
+                )
+
+            x_axis_label = (
+                X_AXIS_LABELS.get(x_axis, x_axis) if not self.is_bayesian_opt
+                else BAYESIAN_OPT_X_AXIS_LABELS.get(x_axis, x_axis)
+            )
+            ax.set_xlabel(x_axis_label)
             ax.set_ylabel(self._name_y_axis(y_metric))
             ax.legend(**LEGEND_SPECS)
 
             if log_y:
                 ax.set_yscale("log")
 
-            ax.set_title(title)
+            if title:
+                ax.set_title(title)
 
-        # Hide unused axes
         for idx in range(n_metrics, len(axes)):
             axes[idx].set_visible(False)
-
-        # if title:
-        #     fig.suptitle(title, y=1.02, fontsize=FONTSIZE)
 
         self._save_or_show(fig, save_path)
         return fig, axes
@@ -271,5 +313,166 @@ class Plotter:
             plt.show()
 
 
+    def plot_with_errorbands(
+            self,
+            aggregated_data: Dict[str, Dict[str, pd.DataFrame]],
+            y_metric: str,
+            x_axis: str,
+            log_y: bool,
+            title: Optional[str] = None,
+            save_path: Optional[Path] = None,
+    ) -> tuple[Figure, Axes]:
+        """Plot single metric with error bands across all runs."""
+        fig, ax = plt.subplots(figsize=(SZ_COL, SZ_ROW))
 
+        for group_key, data in aggregated_data.items():
+            mean_df = data["mean"]
+            std_df = data["std"]
+            num_runs = data["num_runs"]
 
+            solver = (
+                mean_df[CONFIG_KEYS["SOLVER"]].iloc[
+                    0] if not self.is_bayesian_opt
+                else mean_df[BAYESIAN_OPT_CONFIG_KEYS["SOLVER"]].iloc[0]
+            )
+            config = self._get_solver_config(mean_df)
+
+            plot_fn = (getattr(ax, METRIC_AX_PLOT_FNS.get(y_metric,
+                                                          "plot")) if not self.is_bayesian_opt
+                       else getattr(ax, BAYESIAN_OPT_METRIC_AX_PLOT_FNS.get(
+                y_metric, "plot"))
+                       )
+
+            plot_fn(
+                mean_df["x_value"],
+                mean_df[y_metric],
+                label=config["label"],
+                color=config["color"],
+                marker=config["marker"],
+                markersize=MARKERSIZE,
+                markevery=len(mean_df["x_value"]) // TOT_MARKERS
+            )
+
+            ax.fill_between(
+                mean_df["x_value"],
+                mean_df[y_metric] - std_df[y_metric],
+                mean_df[y_metric] + std_df[y_metric],
+                color=config["color"],
+                alpha=ERRORBAND_ALPHA
+            )
+
+        x_axis_label = (
+            X_AXIS_LABELS.get(x_axis, x_axis) if not self.is_bayesian_opt
+            else BAYESIAN_OPT_X_AXIS_LABELS.get(x_axis, x_axis)
+        )
+        ax.set_xlabel(x_axis_label)
+        ax.set_ylabel(self._name_y_axis(y_metric))
+        ax.legend(**LEGEND_SPECS)
+
+        if log_y:
+            ax.set_yscale("log")
+
+        if title:
+            ax.set_title(title, fontsize=FONTSIZE * 0.9)
+
+        self._save_or_show(fig, save_path)
+        return fig, ax
+
+    def plot_metric_grid_with_errorbands(
+            self,
+            aggregated_data: Dict[str, Dict[str, pd.DataFrame]],
+            y_metrics: Sequence[str],
+            x_axis: str,
+            log_y: bool = True,
+            title: Optional[str] = None,
+            save_path: Optional[Path] = None,
+    ) -> tuple[Figure, List[Axes]]:
+        """Plot grid of metrics with error bands."""
+        n_metrics = len(y_metrics)
+        n_cols = int(np.ceil(np.sqrt(n_metrics)))
+        n_rows = int(np.ceil(n_metrics / n_cols))
+
+        fig, axes = plt.subplots(
+            n_rows, n_cols,
+            figsize=(SZ_COL * n_cols, SZ_ROW * n_rows),
+            squeeze=False
+        )
+        axes = axes.flatten()
+
+        handles_list = []
+        labels_list = []
+
+        for idx, y_metric in enumerate(y_metrics):
+            ax = axes[idx]
+
+            for group_key, data in aggregated_data.items():
+                mean_df = data["mean"]
+                std_df = data["std"]
+                num_runs = data["num_runs"]
+
+                solver = (
+                    mean_df[CONFIG_KEYS["SOLVER"]].iloc[
+                        0] if not self.is_bayesian_opt
+                    else mean_df[BAYESIAN_OPT_CONFIG_KEYS["SOLVER"]].iloc[0]
+                )
+                config = self._get_solver_config(mean_df)
+
+                plot_fn = (getattr(ax, METRIC_AX_PLOT_FNS.get(y_metric,
+                                                              "plot")) if not self.is_bayesian_opt
+                           else getattr(ax, BAYESIAN_OPT_METRIC_AX_PLOT_FNS.get(
+                    y_metric, "plot"))
+                           )
+
+                line = plot_fn(
+                    mean_df["x_value"],
+                    mean_df[y_metric],
+                    label=config["label"],
+                    color=config["color"],
+                    marker=config["marker"],
+                    markersize=MARKERSIZE,
+                    markevery=len(mean_df["x_value"]) // TOT_MARKERS
+                )
+
+                ax.fill_between(
+                    mean_df["x_value"],
+                    mean_df[y_metric] - std_df[y_metric],
+                    mean_df[y_metric] + std_df[y_metric],
+                    color=config["color"],
+                    alpha=ERRORBAND_ALPHA
+                )
+
+                if idx == 0:
+                    handles_list.append(line[0])
+                    labels_list.append(config["label"])
+
+            x_axis_label = (
+                X_AXIS_LABELS.get(x_axis, x_axis) if not self.is_bayesian_opt
+                else BAYESIAN_OPT_X_AXIS_LABELS.get(x_axis, x_axis)
+            )
+            ax.set_xlabel(x_axis_label)
+            ax.set_ylabel(self._name_y_axis(y_metric))
+
+            if log_y:
+                ax.set_yscale("log")
+
+            if title:
+                ax.set_title(title)
+
+        for idx in range(n_metrics, len(axes)):
+            axes[idx].set_visible(False)
+
+        legend_specs = LEGEND_SPECS.copy()
+        legend_specs["ncol"] = len(handles_list)
+
+        legend_position = {
+            "loc": "lower center",
+            "bbox_to_anchor": (0.5, -0.05),
+            "ncol": legend_specs["ncol"],
+            "frameon": legend_specs.get("frameon", False),
+            "fontsize": legend_specs.get("fontsize", FONTSIZE * 0.7)
+        }
+
+        fig.legend(handles_list, labels_list, **legend_position)
+
+        self._save_or_show(fig, save_path)
+        return fig, axes

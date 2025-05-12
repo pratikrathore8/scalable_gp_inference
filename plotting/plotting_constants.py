@@ -1,6 +1,4 @@
-import matplotlib.cm as cm
 import numpy as np
-from compressed_root_norm import CompressedRootNorm
 
 USE_LATEX: bool = True
 FONTSIZE:  int = 14
@@ -17,10 +15,11 @@ HPARAMS_TO_LABEL = {
 SZ_COL: float = 8.0
 SZ_ROW: float = 6.0
 
+
 LEGEND_SPECS = {
     "loc": "lower center",
-    "bbox_to_anchor": (0.5, -0.35),
-    "ncol": 3,
+    "bbox_to_anchor": (0.5, -0.25),
+    "ncol": 4,
     "frameon": False,
     "fontsize": FONTSIZE * 0.7
 }
@@ -32,11 +31,6 @@ OPT_COLORS = {
     "sap_identity": "tab:pink",
     "pcg": "#4169E1",
 }
-
-RANK_MIN = 0
-RANK_MAX = 500 + 1
-NORM = CompressedRootNorm(vmin=RANK_MIN, vmax=RANK_MAX, root=3)
-DUMMY_PLOTTING_RANK = 100
 
 PRECOND_MARKERS = {
     "sap": {
@@ -51,9 +45,9 @@ SAMPLING_LINESTYLES = {
     "rls": "dashed",
 }
 
-TOT_MARKERS: int = 10
-MARKERSIZE: int = 8
-
+TOT_MARKERS: int = 4
+MARKERSIZE: int = 4
+ERRORBAND_ALPHA = 0.2
 
 METRIC_AX_PLOT_FNS: dict[str, str] = {
     "abs_res":                       "semilogy",
@@ -100,10 +94,7 @@ RHO_LABEL = r"\rho"
 PRECOND_LABELS = {
     "nystrom": [r"Nystr$\ddot{\mathrm{o}}$m"],
 }
-MODE_LABELS = {
-    "greedy": "GC",
-    "rpc": "RPC",
-}
+
 RHO_LABELS = {
     "damped": r"\mathrm{damped}",
     "regularization": r"\mathrm{regularization}",
@@ -119,13 +110,32 @@ X_AXIS_LABELS: dict[str, str] = dict(
     iters="Iterations",
 )
 
+
 NAN_REPLACEMENT: float = np.inf
 
 X_AXIS_TIME_GRACE = 1.02
 
-PERFORMANCE_AXIS_LABELS = {
-    "x": "Fraction of time budget",
-    "y": "Fraction of problems solved",
-}
 
 SORT_KEYS = ["opt", "accelerated", "sampling_method", "precond_type", "r", "b", "m"]
+
+
+#------------------------------------------------------------
+# Plotting constants for the Bayesian optimization task
+#------------------------------------------------------------
+
+BAYESIAN_OPT_BASE_SAVE_DIR: str = "./plots/bayesian_optimization"
+
+BAYESIAN_OPT_METRIC_AX_PLOT_FNS: dict[str, str] = {
+    "fn_max":                       "semilogy",
+}
+
+BAYESIAN_OPT_METRIC_LABELS: dict[str, str] = {
+    "fn_max":                       r"Best objective value",
+}
+
+
+BAYESIAN_OPT_X_AXIS_LABELS: dict[str, str] = dict(
+    time="Time (s)",
+    num_acquisitions="Number of acquisitions",
+    iters="Iterations",
+)
