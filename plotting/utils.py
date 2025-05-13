@@ -207,18 +207,55 @@ def get_metric_statistics(
     return all_statistics
 
 
-def plot_metric_statistics(
-    statistics_dict: dict[str, tuple[MetricData, MetricData, MetricData]],
-    colors_dict: dict[str, str],
-    x_axis_name: str,
-    dataset: str,
-    save_path: str = None,
-):
-    fig, ax = plt.subplots(figsize=(SZ_COL, SZ_ROW))
+def _get_grid_size(
+    grid_size: tuple[int, int] | None, n_datasets: int
+) -> tuple[int, int]:
+    if grid_size is None:
+        cols = min(3, n_datasets)
+        rows = (n_datasets + cols - 1) // cols  # Ceiling division
+    else:
+        rows, cols = grid_size
+    return rows, cols
 
+
+def _shape_axes(axes, rows: int, cols: int):
+    # Convert to 2D array if needed
+    if rows == 1 and cols == 1:
+        axes = np.array([[axes]])
+    elif rows == 1:
+        axes = axes.reshape(1, -1)
+    elif cols == 1:
+        axes = axes.reshape(-1, 1)
+    return axes
+
+
+def _get_axis(axes, i: int, cols: int):
+    row_idx = i // cols
+    col_idx = i % cols
+    ax = axes[row_idx, col_idx]
+    return ax
+
+
+def _hide_unused_subplots(axes, n_datasets: int, rows: int, cols: int):
+    # Hide unused subplots
+    for i in range(n_datasets, rows * cols):
+        row_idx = i // cols
+        col_idx = i % cols
+        axes[row_idx, col_idx].axis("off")
+
+
+def _plot_metric_statistics_helper(
+    ax,
+    statistics_dict,
+    colors_dict,
+    x_axis_name,
+    dataset,
+):
+    """Helper function to plot metrics on a given axis."""
     # Initialize min and max values for x axis
     min_final_time = np.inf
     xlims = (np.inf, -np.inf)
+    metric_name = None
 
     for i, (opt_name, statistics) in enumerate(list(statistics_dict.items())):
         mean_data, lower_bound_data, upper_bound_data = statistics
@@ -258,24 +295,85 @@ def plot_metric_statistics(
     ax.set_xlabel(X_AXIS_NAME_MAP[x_axis_name])
     ax.set_ylabel(metric_name)
     ax.set_title(dataset)
-    fig.legend(**LEGEND_SPECS)
+
+
+def plot_metric_statistics(
+    statistics_dicts: dict[str, dict[str, tuple[MetricData, MetricData, MetricData]]],
+    colors_dict: dict[str, str],
+    x_axis_name: str,
+    grid_size: tuple[int, int] = None,
+    save_path: str = None,
+):
+    """
+    Plot metric statistics for multiple datasets as subplots.
+
+    Args:
+        statistics_dicts: Dictionary of dictionaries containing statistics
+          for each dataset
+        colors_dict: Dictionary mapping optimizer names to colors
+        x_axis_name: Name of the x-axis to use
+        grid_size: Tuple (rows, cols) for subplot grid. If None,
+          will be automatically determined
+        save_path: Path to save the figure
+    """
+    # Determine grid size if not provided
+    n_datasets = len(statistics_dicts)
+    rows, cols = _get_grid_size(grid_size, n_datasets)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(SZ_COL * cols, SZ_ROW * rows))
+
+    # Convert to 2D array if needed
+    axes = _shape_axes(axes, rows, cols)
+
+    # Keep track of unique optimizer names across all datasets
+    all_opt_names = set()
+    for stats_dict in statistics_dicts.values():
+        all_opt_names.update(stats_dict.keys())
+
+    # Create a mapping of optimizer names to line objects for the legend
+    legend_handles_dict = {}
+
+    # Plot each dataset
+    for i, (dataset, statistics_dict) in enumerate(list(statistics_dicts.items())):
+        ax = _get_axis(axes, i, cols)
+
+        _plot_metric_statistics_helper(
+            ax, statistics_dict, colors_dict, x_axis_name, dataset
+        )
+
+        # Collect line objects for legend from this plot
+        handles, labels = ax.get_legend_handles_labels()
+        for handle, label in zip(handles, labels):
+            if label not in legend_handles_dict:
+                legend_handles_dict[label] = handle
+
+    # Hide unused subplots
+    _hide_unused_subplots(axes, n_datasets, rows, cols)
+
+    # Create legend handles and labels in a consistent order
+    sorted_opt_names = sorted(legend_handles_dict.keys())
+    legend_handles = [legend_handles_dict[name] for name in sorted_opt_names]
+
+    # Add a single legend for the entire figure
+    fig.legend(legend_handles, sorted_opt_names, **LEGEND_SPECS)
+
     plt.tight_layout()
     _savefig(fig, save_path)
 
 
-def bar_metric_statistics(
-    statistics_dict: dict[str, tuple[MetricData, MetricData, MetricData]],
-    colors_dict: dict[str, str],
-    dataset: str,
-    save_path: str = None,
+def _bar_metric_statistics_helper(
+    ax,
+    statistics_dict,
+    colors_dict,
+    dataset,
 ):
-    fig, ax = plt.subplots(figsize=(SZ_COL, SZ_ROW))
-
+    """Helper function to create bar plots on a given axis."""
     # Lists to store data for the bar chart
     opt_names = []
     final_values = []
     lower_bounds = []
     upper_bounds = []
+    metric_name = None
 
     for i, (opt_name, statistics) in enumerate(list(statistics_dict.items())):
         mean_data, lower_bound_data, upper_bound_data = statistics
@@ -321,6 +419,42 @@ def bar_metric_statistics(
 
     # Add grid for better readability
     ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+
+def bar_metric_statistics(
+    statistics_dicts: dict[str, dict[str, tuple[MetricData, MetricData, MetricData]]],
+    colors_dict: dict[str, str],
+    grid_size: tuple[int, int] = None,
+    save_path: str = None,
+):
+    """
+    Create bar charts for multiple datasets as subplots.
+
+    Args:
+        statistics_dicts: Dictionary of dictionaries containing statistics
+          for each dataset
+        colors_dict: Dictionary mapping optimizer names to colors
+        grid_size: Tuple (rows, cols) for subplot grid. If None,
+          will be automatically determined
+        save_path: Path to save the figure
+    """
+    # Determine grid size if not provided
+    n_datasets = len(statistics_dicts)
+    rows, cols = _get_grid_size(grid_size, n_datasets)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(SZ_COL * cols, SZ_ROW * rows))
+
+    # Convert to 2D array if needed
+    axes = _shape_axes(axes, rows, cols)
+
+    # Plot each dataset
+    for i, (dataset, statistics_dict) in enumerate(list(statistics_dicts.items())):
+        ax = _get_axis(axes, i, cols)
+
+        _bar_metric_statistics_helper(ax, statistics_dict, colors_dict, dataset)
+
+    # Hide unused subplots
+    _hide_unused_subplots(axes, n_datasets, rows, cols)
 
     plt.tight_layout()
     _savefig(fig, save_path)
