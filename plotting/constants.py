@@ -14,7 +14,7 @@ X_AXIS_NAME_MAP = {
 BOUND_FILL = 0.2
 FONTSIZE = 20
 BASE_SAVE_DIR = "./plots"
-EXTENSION = ".pdf"
+SAVE_EXTENSION = "pdf"
 LEGEND_SPECS = {
     "loc": "upper center",
     "bbox_to_anchor": (0.5, 0.0),
