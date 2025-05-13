@@ -332,12 +332,12 @@ def plot_metric_statistics(
     _savefig(fig, save_path)
 
 
-def plot_timing(
+def plot_parallel_scaling(
     runs: list[WandbRun],
     save_path: str = None,
 ):
     """
-    Plot the timing for each run.
+    Plot the parallel scaling for runs belonging to a given dataset and optimizer.
 
     Args:
         runs: List of WandbRun objects

@@ -19,7 +19,7 @@ TIMING_PLOT_COLOR = "tab:blue"
 BOUND_FILL = 0.2
 GRID_FILL = 0.7
 FONTSIZE = 20
-BASE_SAVE_DIR = "./plots"
+BASE_SAVE_DIR = "./figs"
 SAVE_EXTENSION = "pdf"
 LEGEND_SPECS = {
     "loc": "upper center",
