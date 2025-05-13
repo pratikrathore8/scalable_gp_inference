@@ -63,7 +63,12 @@ if __name__ == "__main__":
 
     # Plot the metrics for all datasets (besides taxi)
     for metric in METRICS:
-        _do_plotting_for_metric(DATASETS, metric, "all")
+        _do_plotting_for_metric(
+            ["benzene", "malonaldehyde", "houseelec"], metric, "all_main"
+        )
+        _do_plotting_for_metric(
+            ["yolanda", "song", "acsincome"], metric, "all_appendix"
+        )
 
     # Also plot for taxi
     _do_plotting_for_metric(["taxi"], "test_rmse", "taxi")

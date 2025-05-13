@@ -277,7 +277,7 @@ def plot_metric_statistics(
     use_min_time: bool = True,
     grid_size: tuple[int, int] = None,
     save_path: str = None,
-):
+) -> tuple[plt.Figure, list[plt.Axes]]:
     """
     Plot metric statistics for multiple datasets as subplots.
 
@@ -344,12 +344,13 @@ def plot_metric_statistics(
 
     plt.tight_layout()
     _savefig(fig, save_path)
+    return fig, axes
 
 
 def plot_parallel_scaling(
     runs: list[WandbRun],
     save_path: str = None,
-):
+) -> tuple[plt.Figure, plt.Axes]:
     """
     Plot the parallel scaling for runs belonging to a given dataset and optimizer.
 
@@ -424,6 +425,7 @@ def plot_parallel_scaling(
 
     plt.tight_layout()
     _savefig(fig, save_path)
+    return fig, ax
 
 
 def _bar_metric_statistics_helper(
@@ -494,7 +496,7 @@ def bar_metric_statistics(
     size_dict: dict[str, int] = {},
     grid_size: tuple[int, int] = None,
     save_path: str = None,
-):
+) -> tuple[plt.Figure, list[plt.Axes]]:
     """
     Create bar charts for multiple datasets as subplots.
 
@@ -532,3 +534,4 @@ def bar_metric_statistics(
 
     plt.tight_layout()
     _savefig(fig, save_path)
+    return fig, axes
