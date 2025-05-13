@@ -110,13 +110,15 @@ def get_metrics_and_colors(
 
 
 def get_metric_statistics(
-    metrics_dict: dict[str, list[MetricData]]
+    metrics_dict: dict[str, list[MetricData]], skip_inconsistent: bool = True
 ) -> dict[str, tuple[MetricData, MetricData, MetricData]]:
     """
     Compute mean, min, and max for each optimizer in the metrics_dict.
 
     Args:
         metrics_dict: Dictionary of metrics for each optimizer
+        skip_inconsistent: If True, skip optimizers with inconsistent data
+          across runs
 
     Returns:
         Dictionary of mean, min, and max data for each optimizer
@@ -133,7 +135,9 @@ def get_metric_statistics(
             metrics_list
         )
 
-        if mean_data is None or min_data is None or max_data is None:
+        if (
+            mean_data is None or min_data is None or max_data is None
+        ) and skip_inconsistent:
             warnings.warn(
                 f"Skipping {opt_name} due to inconsistent metric data across runs."
             )
