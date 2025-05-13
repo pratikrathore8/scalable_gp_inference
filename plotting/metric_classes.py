@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 
-from plotting.constants import X_AXIS_NAME_MAP, METRIC_NAME_BASE, METRIC_NAME_MAP
+from plotting.constants import X_AXIS_NAME_MAP, METRIC_NAME_MAP
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -80,8 +80,7 @@ class WandbRun:
         elif self.run.config["solver_name"] == "pcg":
             return 1
 
-    def get_metric_data(self, metric: str) -> MetricData:
-        full_metric_name = f"{METRIC_NAME_BASE}{metric}"
+    def get_metric_data(self, metric: str, full_metric_name: str) -> MetricData:
         run_hist = self.run.scan_history(keys=[full_metric_name, "_step", "iter_time"])
 
         # Extract raw data
@@ -95,6 +94,10 @@ class WandbRun:
         unique_indices = np.sort(unique_indices)
 
         # Filter to keep only unique step entries
+        # NOTE(pratik): datapasses and steps will be inaccurate
+        # for Bayesian optimization
+        # We only plots with respect to time for Bayesian optimization
+        # and not with respect to datapasses or steps.
         metric_data = metric_data[unique_indices]
         times = times[unique_indices]
         steps = steps[unique_indices]

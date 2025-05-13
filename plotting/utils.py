@@ -74,7 +74,9 @@ def get_runs(project_name: str) -> list[WandbRun]:
 
 
 def get_metrics_and_colors(
-    runs: list[WandbRun], metric: str
+    runs: list[WandbRun],
+    metric: str,
+    full_metric_name: str,
 ) -> tuple[dict[str, list[MetricData]], dict[str, str]]:
     """
     Get metrics and colors for each run.
@@ -82,6 +84,7 @@ def get_metrics_and_colors(
     Args:
         runs: List of WandbRun objects
         metric: Metric name to extract
+        full_metric_name: Full metric name to extract
     Returns:
         Tuple of (metrics_dict, colors_dict)
     """
@@ -95,7 +98,7 @@ def get_metrics_and_colors(
             colors_dict[opt_name] = run_obj.color
 
         # Get metrics for the run
-        metric_data = run_obj.get_metric_data(metric)
+        metric_data = run_obj.get_metric_data(metric, full_metric_name)
         metrics_dict[opt_name].append(metric_data)
     return metrics_dict, colors_dict
 

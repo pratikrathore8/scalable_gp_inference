@@ -5,6 +5,7 @@ METRIC_NAME_MAP = {
     "test_rmse": "Test RMSE",
     "test_posterior_samples_mean_nll": "Test Mean NLL",
     "train_rmse": "Train RMSE",
+    "fn_max": "Max Value",
 }
 X_AXIS_NAME_MAP = {
     "datapasses": "Datapasses",
