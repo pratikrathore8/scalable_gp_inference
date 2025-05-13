@@ -1,4 +1,5 @@
 import os
+import re
 import warnings
 
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import wandb
 from plotting.constants import (
     BOUND_FILL,
     ENTITY_NAME,
+    GRID_FILL,
     LEGEND_SPECS,
     SZ_COL,
     SZ_ROW,
@@ -176,6 +178,25 @@ def _hide_unused_subplots(axes, n_datasets: int, rows: int, cols: int):
         axes[row_idx, col_idx].axis("off")
 
 
+def _get_n_sci(n):
+    n_sci = re.sub(r"e\+?0*(\d+)", r" \\cdot 10^{\1}", f"{n:.2e}")
+    n_sci = re.sub(r"e-0*(\d+)", r" \\cdot 10^{-\1}", n_sci)
+    return n_sci
+
+
+def _get_title(dataset: str, dataset_size: int | None) -> str:
+    """Generate a title for the subplot."""
+    if dataset_size is not None:
+        return f"{dataset} ($n = {_get_n_sci(dataset_size)}$)"
+    else:
+        return dataset
+
+
+def _add_grid(ax):
+    """Add grid to the axis."""
+    ax.grid(axis="y", linestyle="--", alpha=GRID_FILL)
+
+
 def _plot_metric_statistics_helper(
     ax,
     statistics_dict,
@@ -228,11 +249,10 @@ def _plot_metric_statistics_helper(
     ax.set_xlim(xlims)
     ax.set_xlabel(X_AXIS_NAME_MAP[x_axis_name])
     ax.set_ylabel(metric_name)
+    ax.set_title(_get_title(dataset, dataset_size))
 
-    if dataset_size is not None:
-        ax.set_title(f"{dataset} (n = {dataset_size})")
-    else:
-        ax.set_title(dataset)
+    # Add grid for better readability
+    _add_grid(ax)
 
 
 def plot_metric_statistics(
@@ -329,6 +349,7 @@ def plot_timing(
     fig, ax = plt.subplots(figsize=(SZ_COL, SZ_ROW))
 
     dataset = runs[0].run.config["dataset"]
+    dataset_size = runs[0].run.config["ntr"]
 
     # Find the run with exactly one device
     reference_time = None
@@ -342,7 +363,7 @@ def plot_timing(
     speedup_dict = {}
     for run_obj in runs:
         num_devices = len(run_obj.run.config["all_devices"])
-        speedup = run_obj.run.summary["cum_time"] / reference_time
+        speedup = reference_time / run_obj.run.summary["cum_time"]
         speedup_dict[num_devices] = speedup
 
     # Sort the speedup dictionary by number of devices
@@ -366,13 +387,24 @@ def plot_timing(
         color=TIMING_PLOT_COLOR,
     )
 
+    # Set x-ticks to only show integer values
+    # Get min and max device numbers to set the tick range
+    min_devices = min(num_devices)
+    max_devices = max(num_devices)
+
+    # Create integer ticks from min to max
+    ax.set_xticks(range(min_devices, max_devices + 1))
+
+    # Ensure the x-axis limits cover the data range
+    ax.set_xlim(min_devices - 0.5, max_devices + 0.5)
+
     # Add labels and title
     ax.set_xlabel(X_AXIS_NAME_MAP["devices"])
     ax.set_ylabel("Speedup")
-    ax.set_title(dataset)
+    ax.set_title(_get_title(dataset, dataset_size))
 
     # Add grid for better readability
-    ax.grid(axis="y", linestyle="--", alpha=0.7)
+    _add_grid(ax)
 
     fig.legend(**LEGEND_SPECS)
 
@@ -385,6 +417,7 @@ def _bar_metric_statistics_helper(
     statistics_dict,
     colors_dict,
     dataset,
+    dataset_size,
 ):
     """Helper function to create bar plots on a given axis."""
     # Lists to store data for the bar chart
@@ -432,17 +465,18 @@ def _bar_metric_statistics_helper(
 
     # Add labels and title
     ax.set_ylabel(metric_name)
-    ax.set_title(dataset)
+    ax.set_title(_get_title(dataset, dataset_size))
     ax.set_xticks(x_pos)
     ax.set_xticklabels(opt_names, rotation=45, ha="right")
 
     # Add grid for better readability
-    ax.grid(axis="y", linestyle="--", alpha=0.7)
+    _add_grid(ax)
 
 
 def bar_metric_statistics(
     statistics_dicts: dict[str, dict[str, tuple[MetricData, MetricData, MetricData]]],
     colors_dict: dict[str, str],
+    size_dict: dict[str, int] = {},
     grid_size: tuple[int, int] = None,
     save_path: str = None,
 ):
@@ -453,6 +487,8 @@ def bar_metric_statistics(
         statistics_dicts: Dictionary of dictionaries containing statistics
           for each dataset
         colors_dict: Dictionary mapping optimizer names to colors
+        size_dict: Dictionary mapping dataset names to sizes for the
+          subplots.
         grid_size: Tuple (rows, cols) for subplot grid. If None,
           will be automatically determined
         save_path: Path to save the figure
@@ -470,7 +506,11 @@ def bar_metric_statistics(
     for i, (dataset, statistics_dict) in enumerate(list(statistics_dicts.items())):
         ax = _get_axis(axes, i, cols)
 
-        _bar_metric_statistics_helper(ax, statistics_dict, colors_dict, dataset)
+        dataset_size = size_dict.get(dataset, None)
+
+        _bar_metric_statistics_helper(
+            ax, statistics_dict, colors_dict, dataset, dataset_size
+        )
 
     # Hide unused subplots
     _hide_unused_subplots(axes, n_datasets, rows, cols)
