@@ -1,9 +1,12 @@
 from warnings import warn
-
 from dataclasses import dataclass
 import numpy as np
+from typing import TypeVar, Type
 
 from plotting.constants import X_AXIS_NAME_MAP
+
+# Define a type variable for self-referential type hints
+T = TypeVar("T", bound="MetricData")
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -39,10 +42,8 @@ class MetricData:
         elif xaxis == "time":
             return self.cum_times
 
-    @staticmethod
-    def compute_statistics(
-        metrics_list: list["MetricData"],
-    ) -> tuple["MetricData", "MetricData", "MetricData"]:
+    @classmethod
+    def compute_statistics(cls: Type[T], metrics_list: list[T]) -> tuple[T, T, T]:
         """
         Compute mean, minimum, and maximum for a list of MetricData objects.
 
@@ -58,21 +59,35 @@ class MetricData:
             m.metric_name == reference.metric_name for m in metrics_list
         )
         if not all_same_name:
-            raise ValueError("All MetricData objects must have the same metric name")
+            raise ValueError(
+                f"All {cls.__name__} objects must have the same metric name"
+            )
 
-        # Check if all metrics have the same steps
-        all_same_steps = all(
-            np.array_equal(m.steps, reference.steps) for m in metrics_list
+        # Get fields to check for equality
+        fields_to_check = ["steps"]
+
+        # Check required fields are equal across all metrics
+        checks_passed = True
+        for field in fields_to_check:
+            is_equal = all(
+                np.array_equal(getattr(m, field), getattr(reference, field))
+                for m in metrics_list
+            )
+            if not is_equal:
+                warn(
+                    f"Not all {cls.__name__} objects have the same {field}. "
+                    f"This may lead to incorrect results. "
+                    f"This is likely because some runs were not finished."
+                )
+                checks_passed = False
+
+        # Additional checks for subclasses
+        subclass_checks_passed = cls._additional_consistency_checks(
+            metrics_list, reference
         )
 
-        if not all_same_steps:
-            warn(
-                "Not all MetricData objects have the same steps. "
-                "This may lead to incorrect results. "
-                "This is likely because some runs were not finished. "
-                "We will return None for the mean, min, and max data."
-            )
-            # Return None for mean, min, and max data
+        if not checks_passed or not subclass_checks_passed:
+            warn("Returning None for the mean, min, and max data.")
             return None, None, None
 
         # Stack metric data along a new axis
@@ -92,35 +107,62 @@ class MetricData:
         # Check if all runs are finished
         all_finished = all(m.finished for m in metrics_list)
 
-        # Create MetricData objects for mean, min, and max
-        mean_data = MetricData(
-            metric_data=mean_metrics,
-            steps=reference.steps,
-            datapasses=reference.datapasses,
-            cum_times=mean_cum_times,
-            finished=all_finished,
-            metric_name=reference.metric_name,
-        )
+        # Build kwargs for creating new objects
+        common_kwargs = {
+            "metric_data": mean_metrics,
+            "steps": reference.steps,
+            "datapasses": reference.datapasses,
+            "cum_times": mean_cum_times,
+            "finished": all_finished,
+            "metric_name": reference.metric_name,
+        }
 
-        min_data = MetricData(
-            metric_data=min_metrics,
-            steps=reference.steps,
-            datapasses=reference.datapasses,
-            cum_times=mean_cum_times,  # Using the same mean cum_times for all
-            finished=all_finished,
-            metric_name=reference.metric_name,
-        )
+        # Add additional kwargs for subclasses
+        additional_kwargs = cls._get_additional_kwargs(reference)
+        kwargs = {**common_kwargs, **additional_kwargs}
 
-        max_data = MetricData(
-            metric_data=max_metrics,
-            steps=reference.steps,
-            datapasses=reference.datapasses,
-            cum_times=mean_cum_times,  # Using the same mean cum_times for all
-            finished=all_finished,
-            metric_name=reference.metric_name,
-        )
+        # Create objects for mean, min, and max
+        mean_data = cls(**kwargs)
+
+        # Update metric_data for min and max
+        min_kwargs = {**kwargs, "metric_data": min_metrics}
+        max_kwargs = {**kwargs, "metric_data": max_metrics}
+
+        min_data = cls(**min_kwargs)
+        max_data = cls(**max_kwargs)
 
         return mean_data, min_data, max_data
+
+    @classmethod
+    def _additional_consistency_checks(
+        cls, metrics_list: list[T], reference: T
+    ) -> bool:
+        """
+        Perform additional consistency checks specific to subclasses.
+
+        Args:
+            metrics_list: List of MetricData objects
+            reference: Reference MetricData object
+
+        Returns:
+            True if all checks pass, False otherwise
+        """
+        # Base class has no additional checks
+        return True
+
+    @classmethod
+    def _get_additional_kwargs(cls, reference: T) -> dict:
+        """
+        Get additional kwargs specific to subclasses.
+
+        Args:
+            reference: Reference MetricData object
+
+        Returns:
+            Dictionary of additional kwargs
+        """
+        # Base class has no additional kwargs
+        return {}
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -147,94 +189,43 @@ class MetricDataBO(MetricData):
         elif xaxis == "num_acquisitions":
             return self.num_acquisitions
 
-    @staticmethod
-    def compute_statistics(
-        metrics_list: list["MetricDataBO"],
-    ) -> tuple["MetricDataBO", "MetricDataBO", "MetricDataBO"]:
+    @classmethod
+    def _additional_consistency_checks(
+        cls, metrics_list: list["MetricDataBO"], reference: "MetricDataBO"
+    ) -> bool:
         """
-        Compute mean, minimum, and maximum for a list of MetricDataBO objects.
+        Check if all MetricDataBO objects have the same num_acquisitions.
 
         Args:
             metrics_list: List of MetricDataBO objects
+            reference: Reference MetricDataBO object
 
         Returns:
-            Tuple of (mean_data, min_data, max_data)
+            True if all checks pass, False otherwise
         """
-        # Check if all metrics have the same metric name
-        reference = metrics_list[0]
-        all_same_name = all(
-            m.metric_name == reference.metric_name for m in metrics_list
-        )
-        if not all_same_name:
-            raise ValueError("All MetricDataBO objects must have the same metric name")
-
-        # Check if all metrics have the same steps
-        all_same_steps = all(
-            np.array_equal(m.steps, reference.steps) for m in metrics_list
-        )
-
-        # Check if all metrics have the same num_acquisitions
         all_same_acquisitions = all(
             np.array_equal(m.num_acquisitions, reference.num_acquisitions)
             for m in metrics_list
         )
 
-        if not all_same_steps or not all_same_acquisitions:
+        if not all_same_acquisitions:
             warn(
-                "Not all MetricDataBO objects have the same steps or acquisitions. "
-                "This may lead to incorrect results. "
-                "This is likely because some runs were not finished. "
-                "We will return None for the mean, min, and max data."
+                "Not all MetricDataBO objects have the same acquisitions. "
+                "This may lead to incorrect results."
             )
-            # Return None for mean, min, and max data
-            return None, None, None
+            return False
 
-        # Stack metric data along a new axis
-        stacked_metrics = np.stack([m.metric_data for m in metrics_list], axis=0)
+        return True
 
-        # Stack cum_times data
-        stacked_cum_times = np.stack([m.cum_times for m in metrics_list], axis=0)
+    @classmethod
+    def _get_additional_kwargs(cls, reference: "MetricDataBO") -> dict:
+        """
+        Get additional kwargs for MetricDataBO.
 
-        # Compute means
-        mean_metrics = np.mean(stacked_metrics, axis=0)
-        mean_cum_times = np.mean(stacked_cum_times, axis=0)
+        Args:
+            reference: Reference MetricDataBO object
 
-        # Find actual min and max values
-        min_metrics = np.min(stacked_metrics, axis=0)
-        max_metrics = np.max(stacked_metrics, axis=0)
-
-        # Check if all runs are finished
-        all_finished = all(m.finished for m in metrics_list)
-
-        # Create MetricDataBO objects for mean, min, and max
-        mean_data = MetricDataBO(
-            metric_data=mean_metrics,
-            steps=reference.steps,
-            datapasses=reference.datapasses,
-            cum_times=mean_cum_times,
-            finished=all_finished,
-            metric_name=reference.metric_name,
-            num_acquisitions=reference.num_acquisitions,
-        )
-
-        min_data = MetricDataBO(
-            metric_data=min_metrics,
-            steps=reference.steps,
-            datapasses=reference.datapasses,
-            cum_times=mean_cum_times,  # Using the same mean cum_times for all
-            finished=all_finished,
-            metric_name=reference.metric_name,
-            num_acquisitions=reference.num_acquisitions,
-        )
-
-        max_data = MetricDataBO(
-            metric_data=max_metrics,
-            steps=reference.steps,
-            datapasses=reference.datapasses,
-            cum_times=mean_cum_times,  # Using the same mean cum_times for all
-            finished=all_finished,
-            metric_name=reference.metric_name,
-            num_acquisitions=reference.num_acquisitions,
-        )
-
-        return mean_data, min_data, max_data
+        Returns:
+            Dictionary with num_acquisitions
+        """
+        return {"num_acquisitions": reference.num_acquisitions}

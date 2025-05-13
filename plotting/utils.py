@@ -11,6 +11,7 @@ from plotting.constants import (
     LEGEND_SPECS,
     SZ_COL,
     SZ_ROW,
+    TIMING_PLOT_COLOR,
     X_AXIS_NAME_MAP,
 )
 from plotting.metric_classes import MetricData
@@ -181,6 +182,7 @@ def _plot_metric_statistics_helper(
     colors_dict,
     x_axis_name,
     dataset,
+    dataset_size,
     use_min_time,
 ):
     """Helper function to plot metrics on a given axis."""
@@ -226,13 +228,18 @@ def _plot_metric_statistics_helper(
     ax.set_xlim(xlims)
     ax.set_xlabel(X_AXIS_NAME_MAP[x_axis_name])
     ax.set_ylabel(metric_name)
-    ax.set_title(dataset)
+
+    if dataset_size is not None:
+        ax.set_title(f"{dataset} (n = {dataset_size})")
+    else:
+        ax.set_title(dataset)
 
 
 def plot_metric_statistics(
     statistics_dicts: dict[str, dict[str, tuple[MetricData, MetricData, MetricData]]],
     colors_dict: dict[str, str],
     x_axis_name: str,
+    size_dict: dict[str, int] = {},
     use_min_time: bool = True,
     grid_size: tuple[int, int] = None,
     save_path: str = None,
@@ -245,6 +252,8 @@ def plot_metric_statistics(
           for each dataset
         colors_dict: Dictionary mapping optimizer names to colors
         x_axis_name: Name of the x-axis to use
+        size_dict: Dictionary mapping dataset names to sizes for the
+          subplots.
         use_min_time: If True, use the minimum final time for the x-axis limit
         grid_size: Tuple (rows, cols) for subplot grid. If None,
           will be automatically determined
@@ -271,8 +280,16 @@ def plot_metric_statistics(
     for i, (dataset, statistics_dict) in enumerate(list(statistics_dicts.items())):
         ax = _get_axis(axes, i, cols)
 
+        dataset_size = size_dict.get(dataset, None)
+
         _plot_metric_statistics_helper(
-            ax, statistics_dict, colors_dict, x_axis_name, dataset, use_min_time
+            ax,
+            statistics_dict,
+            colors_dict,
+            x_axis_name,
+            dataset,
+            dataset_size,
+            use_min_time,
         )
 
         # Collect line objects for legend from this plot
@@ -290,6 +307,74 @@ def plot_metric_statistics(
 
     # Add a single legend for the entire figure
     fig.legend(legend_handles, sorted_opt_names, **LEGEND_SPECS)
+
+    plt.tight_layout()
+    _savefig(fig, save_path)
+
+
+def plot_timing(
+    runs: list[WandbRun],
+    save_path: str = None,
+):
+    """
+    Plot the timing for each run.
+
+    Args:
+        runs: List of WandbRun objects
+        save_path: Path to save the figure
+    """
+    # NOTE(pratik): This function assumes that the runs are all for the same dataset
+    # and that they are all for the same optimizer.
+    # If this is not the case, the plot will not make sense.
+    fig, ax = plt.subplots(figsize=(SZ_COL, SZ_ROW))
+
+    dataset = runs[0].run.config["dataset"]
+
+    # Find the run with exactly one device
+    reference_time = None
+    for run_obj in runs:
+        if len(run_obj.run.config["all_devices"]) == 1:
+            reference_time = run_obj.run.summary["cum_time"]
+    if reference_time is None:
+        raise ValueError("No run with exactly one device found.")
+
+    # Calculate speedup
+    speedup_dict = {}
+    for run_obj in runs:
+        num_devices = len(run_obj.run.config["all_devices"])
+        speedup = run_obj.run.summary["cum_time"] / reference_time
+        speedup_dict[num_devices] = speedup
+
+    # Sort the speedup dictionary by number of devices
+    sorted_speedup = dict(sorted(speedup_dict.items()))
+    num_devices = list(sorted_speedup.keys())
+    speedup = list(sorted_speedup.values())
+
+    # Create a line plot that compares to y == x
+    ax.plot(
+        num_devices,
+        num_devices,
+        label="Ideal Speedup",
+        linestyle="--",
+        color=TIMING_PLOT_COLOR,
+    )
+    ax.plot(
+        num_devices,
+        speedup,
+        label="Measured Speedup",
+        marker="o",
+        color=TIMING_PLOT_COLOR,
+    )
+
+    # Add labels and title
+    ax.set_xlabel(X_AXIS_NAME_MAP["devices"])
+    ax.set_ylabel("Speedup")
+    ax.set_title(dataset)
+
+    # Add grid for better readability
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+    fig.legend(**LEGEND_SPECS)
 
     plt.tight_layout()
     _savefig(fig, save_path)
