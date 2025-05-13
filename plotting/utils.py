@@ -137,3 +137,29 @@ def compute_metric_statistics(
     )
 
     return mean_data, min_data, max_data
+
+
+def get_metric_statistics_all_optimizers(
+    metrics_dict: dict[str, list[MetricData]]
+) -> dict[str, tuple[MetricData, MetricData, MetricData]]:
+    """
+    Compute mean, min, and max for each optimizer in the metrics_dict.
+
+    Args:
+        metrics_dict: Dictionary of metrics for each optimizer
+
+    Returns:
+        Dictionary of mean, min, and max data for each optimizer
+    """
+    all_statistics = {}
+    for opt_name, metrics_list in metrics_dict.items():
+        mean_data, min_data, max_data = compute_metric_statistics(metrics_list)
+
+        if mean_data is None or min_data is None or max_data is None:
+            warnings.warn(
+                f"Skipping {opt_name} due to inconsistent metric data across runs."
+            )
+            continue
+
+        all_statistics[opt_name] = (mean_data, min_data, max_data)
+    return all_statistics
