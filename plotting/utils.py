@@ -11,6 +11,8 @@ from plotting.constants import (
     ENTITY_NAME,
     GRID_FILL,
     LEGEND_SPECS,
+    METRIC_NAME_MAP,
+    METRIC_YLIMS_MAP,
     SZ_COL,
     SZ_ROW,
     TIMING_PLOT_COLOR,
@@ -192,6 +194,13 @@ def _get_title(dataset: str, dataset_size: int | None) -> str:
         return dataset
 
 
+def _set_ylim(ax, metric_name: str) -> tuple[float, float] | None:
+    """Set y-axis limits for a given metric name."""
+    ylims = METRIC_YLIMS_MAP.get(metric_name, None)
+    if ylims is not None:
+        ax.set_ylim(ylims)
+
+
 def _add_grid(ax):
     """Add grid to the axis."""
     ax.grid(axis="y", linestyle="--", alpha=GRID_FILL)
@@ -247,8 +256,9 @@ def _plot_metric_statistics_helper(
         xlims = (xlims[0], min_final_time)
 
     ax.set_xlim(xlims)
+    _set_ylim(ax, metric_name)
     ax.set_xlabel(X_AXIS_NAME_MAP[x_axis_name])
-    ax.set_ylabel(metric_name)
+    ax.set_ylabel(METRIC_NAME_MAP[metric_name])
     ax.set_title(_get_title(dataset, dataset_size))
 
     # Add grid for better readability
@@ -464,7 +474,8 @@ def _bar_metric_statistics_helper(
     )
 
     # Add labels and title
-    ax.set_ylabel(metric_name)
+    ax.set_ylabel(METRIC_NAME_MAP[metric_name])
+    _set_ylim(ax, metric_name)
     ax.set_title(_get_title(dataset, dataset_size))
     ax.set_xticks(x_pos)
     ax.set_xticklabels(opt_names, rotation=45, ha="right")

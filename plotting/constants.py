@@ -8,6 +8,10 @@ METRIC_NAME_MAP = {
     "train_rmse": "Train RMSE",
     "fn_max": "Max Value",
 }
+METRIC_YLIMS_MAP = {
+    "test_rmse": (0, 2),
+    "train_rmse": (0, 2),
+}
 X_AXIS_NAME_MAP = {
     "datapasses": "Datapasses",
     "iterations": "Iterations",

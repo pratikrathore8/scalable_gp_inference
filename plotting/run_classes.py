@@ -1,6 +1,6 @@
 import numpy as np
 
-from plotting.constants import METRIC_NAME_BASE, METRIC_NAME_MAP
+from plotting.constants import METRIC_NAME_BASE
 from plotting.metric_classes import MetricData, MetricDataBO
 
 
@@ -74,7 +74,7 @@ class WandbRun:
         cum_times = np.cumsum(times)
 
         return MetricData(
-            metric_name=METRIC_NAME_MAP[metric],
+            metric_name=metric,
             metric_data=metric_data,
             steps=steps,
             datapasses=datapasses,
@@ -137,7 +137,7 @@ class WandbRunBO(WandbRun):
         cum_times = np.cumsum(times)
 
         return MetricDataBO(
-            metric_name=METRIC_NAME_MAP[metric],
+            metric_name=metric,
             metric_data=metric_data,
             steps=steps,
             datapasses=None,

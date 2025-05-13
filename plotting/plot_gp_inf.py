@@ -39,7 +39,7 @@ def _do_plotting_for_metric(datasets: list[str], metric: str, subfolder_name: st
     )
     save_path_bar = get_save_path(
         f"{BASE_SAVE_DIR}/gp_inf/{subfolder_name}",
-        f"{metric}_{X_AXIS_NAME}_bar.{SAVE_EXTENSION}",
+        f"{metric}_bar.{SAVE_EXTENSION}",
     )
 
     # Plot the statistics
