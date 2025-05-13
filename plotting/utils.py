@@ -260,5 +260,67 @@ def plot_metric_statistics(
     ax.set_title(dataset)
     fig.legend(**LEGEND_SPECS)
     plt.tight_layout()
+    _savefig(fig, save_path)
 
+
+def bar_metric_statistics(
+    statistics_dict: dict[str, tuple[MetricData, MetricData, MetricData]],
+    colors_dict: dict[str, str],
+    dataset: str,
+    save_path: str = None,
+):
+    fig, ax = plt.subplots(figsize=(SZ_COL, SZ_ROW))
+
+    # Lists to store data for the bar chart
+    opt_names = []
+    final_values = []
+    lower_bounds = []
+    upper_bounds = []
+
+    for i, (opt_name, statistics) in enumerate(list(statistics_dict.items())):
+        mean_data, lower_bound_data, upper_bound_data = statistics
+
+        # Extract name for y-axis
+        if i == 0:
+            metric_name = mean_data.metric_name
+
+        # Store the final values (last element of each array)
+        if mean_data.finished:
+            opt_names.append(opt_name)
+            final_values.append(mean_data.metric_data[-1])
+            lower_bounds.append(lower_bound_data.metric_data[-1])
+            upper_bounds.append(upper_bound_data.metric_data[-1])
+
+    # Calculate error bar heights
+    lower_errors = np.array(final_values) - np.array(lower_bounds)
+    upper_errors = np.array(upper_bounds) - np.array(final_values)
+    errors = np.vstack([lower_errors, upper_errors])
+
+    # Create bar positions
+    x_pos = np.arange(len(opt_names))
+
+    # Create the bar chart
+    ax.bar(
+        x_pos,
+        final_values,
+        width=0.7,
+        align="center",
+        yerr=errors,
+        capsize=8,
+        color=[colors_dict[name] for name in opt_names],
+        edgecolor="black",
+        linewidth=1.5,
+        error_kw={"elinewidth": 2, "capthick": 2},
+    )
+
+    # Add labels and title
+    ax.set_ylabel(metric_name)
+    ax.set_title(dataset)
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(opt_names, rotation=45, ha="right")
+
+    # Add grid for better readability
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+    plt.tight_layout()
     _savefig(fig, save_path)
