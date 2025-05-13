@@ -1,5 +1,6 @@
 ENTITY_NAME = "sketchy-opts"
 PROJECT_NAME_BASE = "gp_inference_"
+PROJECT_NAME_BASE_BO = "bayesopt_lengthscale_"
 METRIC_NAME_BASE = "metrics.callback."
 METRIC_NAME_MAP = {
     "test_rmse": "Test RMSE",
@@ -11,6 +12,7 @@ X_AXIS_NAME_MAP = {
     "datapasses": "Datapasses",
     "iterations": "Iterations",
     "time": "Time (s)",
+    "num_acquisitions": "Number of Acquisitions",
 }
 BOUND_FILL = 0.2
 FONTSIZE = 20

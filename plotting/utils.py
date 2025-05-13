@@ -13,7 +13,8 @@ from plotting.constants import (
     SZ_ROW,
     X_AXIS_NAME_MAP,
 )
-from plotting.metric_classes import MetricData, WandbRun
+from plotting.metric_classes import MetricData
+from plotting.run_classes import WandbRun, WandbRunBO
 
 
 def render_in_latex():
@@ -58,25 +59,26 @@ def _savefig(fig, save_path):
         fig.show()
 
 
-def get_runs(project_name: str) -> list[WandbRun]:
+def get_runs(project_name: str, mode="gp_inference") -> list[WandbRun]:
     """
     Get all runs from a wandb project.
 
     Args:
         project_name: Name of the wandb project
+        mode: Mode for getting runs. Can be "gp_inference" or "bo".
 
     Returns:
         List of runs
     """
     api = wandb.Api()
-    runs = [WandbRun(run) for run in api.runs(f"{ENTITY_NAME}/{project_name}")]
+    run_class = WandbRunBO if mode == "bo" else WandbRun
+    runs = [run_class(run) for run in api.runs(f"{ENTITY_NAME}/{project_name}")]
     return runs
 
 
 def get_metrics_and_colors(
     runs: list[WandbRun],
     metric: str,
-    full_metric_name: str,
 ) -> tuple[dict[str, list[MetricData]], dict[str, str]]:
     """
     Get metrics and colors for each run.
@@ -84,7 +86,6 @@ def get_metrics_and_colors(
     Args:
         runs: List of WandbRun objects
         metric: Metric name to extract
-        full_metric_name: Full metric name to extract
     Returns:
         Tuple of (metrics_dict, colors_dict)
     """
@@ -98,90 +99,9 @@ def get_metrics_and_colors(
             colors_dict[opt_name] = run_obj.color
 
         # Get metrics for the run
-        metric_data = run_obj.get_metric_data(metric, full_metric_name)
+        metric_data = run_obj.get_metric_data(metric)
         metrics_dict[opt_name].append(metric_data)
     return metrics_dict, colors_dict
-
-
-def compute_metric_statistics(
-    metrics_list: list[MetricData],
-) -> tuple[MetricData, MetricData, MetricData]:
-    """
-    Compute mean, minimum, and maximum for a list of MetricData objects.
-
-    Args:
-        metrics_list: List of MetricData objects
-
-    Returns:
-        Tuple of (mean_data, min_data, max_data)
-    """
-    # Check if all metrics have the same metric name
-    reference = metrics_list[0]
-    all_same_name = all(m.metric_name == reference.metric_name for m in metrics_list)
-    if not all_same_name:
-        raise ValueError("All MetricData objects must have the same metric name")
-
-    # Check if all metrics have the same steps
-    reference = metrics_list[0]
-    all_same_steps = all(np.array_equal(m.steps, reference.steps) for m in metrics_list)
-
-    if not all_same_steps:
-        # raise ValueError("All MetricData objects must have the same steps")
-        warnings.warn(
-            "Not all MetricData objects have the same steps. "
-            "This may lead to incorrect results. "
-            "This is likely because some runs were not finished. "
-            "We will return None for the mean, min, and max data."
-        )
-        # Return None for mean, min, and max data
-        return None, None, None
-
-    # Stack metric data along a new axis
-    stacked_metrics = np.stack([m.metric_data for m in metrics_list], axis=0)
-
-    # Stack cum_times data
-    stacked_cum_times = np.stack([m.cum_times for m in metrics_list], axis=0)
-
-    # Compute means
-    mean_metrics = np.mean(stacked_metrics, axis=0)
-    mean_cum_times = np.mean(stacked_cum_times, axis=0)
-
-    # Find actual min and max values
-    min_metrics = np.min(stacked_metrics, axis=0)
-    max_metrics = np.max(stacked_metrics, axis=0)
-
-    # Check if all runs are finished
-    all_finished = all(m.finished for m in metrics_list)
-
-    # Create MetricData objects for mean, min, and max
-    mean_data = MetricData(
-        metric_data=mean_metrics,
-        steps=reference.steps,
-        datapasses=reference.datapasses,
-        cum_times=mean_cum_times,
-        finished=all_finished,
-        metric_name=reference.metric_name,
-    )
-
-    min_data = MetricData(
-        metric_data=min_metrics,
-        steps=reference.steps,
-        datapasses=reference.datapasses,
-        cum_times=mean_cum_times,  # Using the same mean cum_times for all
-        finished=all_finished,
-        metric_name=reference.metric_name,
-    )
-
-    max_data = MetricData(
-        metric_data=max_metrics,
-        steps=reference.steps,
-        datapasses=reference.datapasses,
-        cum_times=mean_cum_times,  # Using the same mean cum_times for all
-        finished=all_finished,
-        metric_name=reference.metric_name,
-    )
-
-    return mean_data, min_data, max_data
 
 
 def get_metric_statistics(
@@ -198,7 +118,15 @@ def get_metric_statistics(
     """
     all_statistics = {}
     for opt_name, metrics_list in metrics_dict.items():
-        mean_data, min_data, max_data = compute_metric_statistics(metrics_list)
+        metric_statistics_class = metrics_list[0].__class__
+        if not all(isinstance(m, metric_statistics_class) for m in metrics_list):
+            warnings.warn(
+                f"Skipping {opt_name} due to inconsistent metric data classes."
+            )
+            continue
+        mean_data, min_data, max_data = metric_statistics_class.compute_statistics(
+            metrics_list
+        )
 
         if mean_data is None or min_data is None or max_data is None:
             warnings.warn(
@@ -253,6 +181,7 @@ def _plot_metric_statistics_helper(
     colors_dict,
     x_axis_name,
     dataset,
+    use_min_time,
 ):
     """Helper function to plot metrics on a given axis."""
     # Initialize min and max values for x axis
@@ -290,8 +219,8 @@ def _plot_metric_statistics_helper(
             # Track the final time for the x-axis limit
             min_final_time = min(min_final_time, mean_data.get_final_time())
 
-    # For time-based x-axis, set the second xlim to the minimum final time
-    if x_axis_name == "time":
+    # Set the second xlim to the minimum final time, if desired
+    if x_axis_name == "time" and use_min_time:
         xlims = (xlims[0], min_final_time)
 
     ax.set_xlim(xlims)
@@ -304,6 +233,7 @@ def plot_metric_statistics(
     statistics_dicts: dict[str, dict[str, tuple[MetricData, MetricData, MetricData]]],
     colors_dict: dict[str, str],
     x_axis_name: str,
+    use_min_time: bool = True,
     grid_size: tuple[int, int] = None,
     save_path: str = None,
 ):
@@ -315,6 +245,7 @@ def plot_metric_statistics(
           for each dataset
         colors_dict: Dictionary mapping optimizer names to colors
         x_axis_name: Name of the x-axis to use
+        use_min_time: If True, use the minimum final time for the x-axis limit
         grid_size: Tuple (rows, cols) for subplot grid. If None,
           will be automatically determined
         save_path: Path to save the figure
@@ -341,7 +272,7 @@ def plot_metric_statistics(
         ax = _get_axis(axes, i, cols)
 
         _plot_metric_statistics_helper(
-            ax, statistics_dict, colors_dict, x_axis_name, dataset
+            ax, statistics_dict, colors_dict, x_axis_name, dataset, use_min_time
         )
 
         # Collect line objects for legend from this plot

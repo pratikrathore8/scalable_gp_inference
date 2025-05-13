@@ -1,7 +1,9 @@
+from warnings import warn
+
 from dataclasses import dataclass
 import numpy as np
 
-from plotting.constants import X_AXIS_NAME_MAP, METRIC_NAME_MAP
+from plotting.constants import X_AXIS_NAME_MAP
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -37,82 +39,202 @@ class MetricData:
         elif xaxis == "time":
             return self.cum_times
 
+    @staticmethod
+    def compute_statistics(
+        metrics_list: list["MetricData"],
+    ) -> tuple["MetricData", "MetricData", "MetricData"]:
+        """
+        Compute mean, minimum, and maximum for a list of MetricData objects.
 
-class WandbRun:
-    def __init__(self, run):
-        self.run = run
+        Args:
+            metrics_list: List of MetricData objects
 
-    @property
-    def opt_name(self) -> str:
-        if self.run.config["solver_name"] == "sap":
-            if self.run.config["solver_config"].get("precond_config", None):
-                return r"\texttt{ADASAP}"
-            else:
-                return r"\texttt{ADASAP-I}"
-        elif self.run.config["solver_name"] == "sdd":
-            return f"SDD-{self.run.config['opt_step_size_unscaled']}"
-        elif self.run.config["solver_name"] == "pcg":
-            if self.run.config["solver_config"].get("precond_config", None):
-                return "PCG"
-        else:
-            raise ValueError(f"Unknown solver name: {self.run.config['solver_name']}")
-
-    @property
-    def color(self) -> str:
-        if self.opt_name == r"\texttt{ADASAP}":
-            return "tab:blue"
-        elif self.opt_name == r"\texttt{ADASAP-I}":
-            return "tab:orange"
-        elif self.opt_name == "SDD-1":
-            return "tab:purple"
-        elif self.opt_name == "SDD-10":
-            return "tab:pink"
-        elif self.opt_name == "SDD-100":
-            return "tab:brown"
-        elif self.opt_name == "PCG":
-            return "tab:olive"
-        else:
-            raise ValueError(f"Unknown optimizer name: {self.opt_name}")
-
-    def _get_num_blocks(self) -> int:
-        if self.run.config["solver_name"] in ["sap", "sdd"]:
-            return self.run.config["opt_num_blocks"]
-        elif self.run.config["solver_name"] == "pcg":
-            return 1
-
-    def get_metric_data(self, metric: str, full_metric_name: str) -> MetricData:
-        run_hist = self.run.scan_history(keys=[full_metric_name, "_step", "iter_time"])
-
-        # Extract raw data
-        metric_data = np.array([x[full_metric_name] for x in run_hist])
-        steps = np.array([x["_step"] for x in run_hist])
-        times = np.array([x["iter_time"] for x in run_hist])
-
-        # Identify unique step indices -- this is needed to remove duplicates
-        _, unique_indices = np.unique(steps, return_index=True)
-        # Sort to maintain original order
-        unique_indices = np.sort(unique_indices)
-
-        # Filter to keep only unique step entries
-        # NOTE(pratik): datapasses and steps will be inaccurate
-        # for Bayesian optimization
-        # We only plots with respect to time for Bayesian optimization
-        # and not with respect to datapasses or steps.
-        metric_data = metric_data[unique_indices]
-        times = times[unique_indices]
-        steps = steps[unique_indices]
-
-        num_blocks = self._get_num_blocks()
-        datapasses = steps / num_blocks
-
-        # Calculate cumulative times
-        cum_times = np.cumsum(times)
-
-        return MetricData(
-            metric_name=METRIC_NAME_MAP[metric],
-            metric_data=metric_data,
-            steps=steps,
-            datapasses=datapasses,
-            cum_times=cum_times,
-            finished=True if self.run.state == "finished" else False,
+        Returns:
+            Tuple of (mean_data, min_data, max_data)
+        """
+        # Check if all metrics have the same metric name
+        reference = metrics_list[0]
+        all_same_name = all(
+            m.metric_name == reference.metric_name for m in metrics_list
         )
+        if not all_same_name:
+            raise ValueError("All MetricData objects must have the same metric name")
+
+        # Check if all metrics have the same steps
+        all_same_steps = all(
+            np.array_equal(m.steps, reference.steps) for m in metrics_list
+        )
+
+        if not all_same_steps:
+            warn(
+                "Not all MetricData objects have the same steps. "
+                "This may lead to incorrect results. "
+                "This is likely because some runs were not finished. "
+                "We will return None for the mean, min, and max data."
+            )
+            # Return None for mean, min, and max data
+            return None, None, None
+
+        # Stack metric data along a new axis
+        stacked_metrics = np.stack([m.metric_data for m in metrics_list], axis=0)
+
+        # Stack cum_times data
+        stacked_cum_times = np.stack([m.cum_times for m in metrics_list], axis=0)
+
+        # Compute means
+        mean_metrics = np.mean(stacked_metrics, axis=0)
+        mean_cum_times = np.mean(stacked_cum_times, axis=0)
+
+        # Find actual min and max values
+        min_metrics = np.min(stacked_metrics, axis=0)
+        max_metrics = np.max(stacked_metrics, axis=0)
+
+        # Check if all runs are finished
+        all_finished = all(m.finished for m in metrics_list)
+
+        # Create MetricData objects for mean, min, and max
+        mean_data = MetricData(
+            metric_data=mean_metrics,
+            steps=reference.steps,
+            datapasses=reference.datapasses,
+            cum_times=mean_cum_times,
+            finished=all_finished,
+            metric_name=reference.metric_name,
+        )
+
+        min_data = MetricData(
+            metric_data=min_metrics,
+            steps=reference.steps,
+            datapasses=reference.datapasses,
+            cum_times=mean_cum_times,  # Using the same mean cum_times for all
+            finished=all_finished,
+            metric_name=reference.metric_name,
+        )
+
+        max_data = MetricData(
+            metric_data=max_metrics,
+            steps=reference.steps,
+            datapasses=reference.datapasses,
+            cum_times=mean_cum_times,  # Using the same mean cum_times for all
+            finished=all_finished,
+            metric_name=reference.metric_name,
+        )
+
+        return mean_data, min_data, max_data
+
+
+@dataclass(kw_only=True, frozen=True)
+class MetricDataBO(MetricData):
+    """Data class to hold metric data for a BO run."""
+
+    num_acquisitions: np.ndarray
+
+    def get_plotting_x_axis(self, xaxis) -> str:
+        if xaxis not in X_AXIS_NAME_MAP:
+            raise ValueError(
+                f"Invalid x-axis name: {xaxis}. Must be one of {X_AXIS_NAME_MAP}."
+            )
+        if xaxis == "datapasses":
+            raise ValueError(
+                "Datapasses is not available for Bayesian optimization runs."
+            )
+        elif xaxis == "iterations":
+            raise ValueError(
+                "Iterations is not available for Bayesian optimization runs."
+            )
+        elif xaxis == "time":
+            return self.cum_times
+        elif xaxis == "num_acquisitions":
+            return self.num_acquisitions
+
+    @staticmethod
+    def compute_statistics(
+        metrics_list: list["MetricDataBO"],
+    ) -> tuple["MetricDataBO", "MetricDataBO", "MetricDataBO"]:
+        """
+        Compute mean, minimum, and maximum for a list of MetricDataBO objects.
+
+        Args:
+            metrics_list: List of MetricDataBO objects
+
+        Returns:
+            Tuple of (mean_data, min_data, max_data)
+        """
+        # Check if all metrics have the same metric name
+        reference = metrics_list[0]
+        all_same_name = all(
+            m.metric_name == reference.metric_name for m in metrics_list
+        )
+        if not all_same_name:
+            raise ValueError("All MetricDataBO objects must have the same metric name")
+
+        # Check if all metrics have the same steps
+        all_same_steps = all(
+            np.array_equal(m.steps, reference.steps) for m in metrics_list
+        )
+
+        # Check if all metrics have the same num_acquisitions
+        all_same_acquisitions = all(
+            np.array_equal(m.num_acquisitions, reference.num_acquisitions)
+            for m in metrics_list
+        )
+
+        if not all_same_steps or not all_same_acquisitions:
+            warn(
+                "Not all MetricDataBO objects have the same steps or acquisitions. "
+                "This may lead to incorrect results. "
+                "This is likely because some runs were not finished. "
+                "We will return None for the mean, min, and max data."
+            )
+            # Return None for mean, min, and max data
+            return None, None, None
+
+        # Stack metric data along a new axis
+        stacked_metrics = np.stack([m.metric_data for m in metrics_list], axis=0)
+
+        # Stack cum_times data
+        stacked_cum_times = np.stack([m.cum_times for m in metrics_list], axis=0)
+
+        # Compute means
+        mean_metrics = np.mean(stacked_metrics, axis=0)
+        mean_cum_times = np.mean(stacked_cum_times, axis=0)
+
+        # Find actual min and max values
+        min_metrics = np.min(stacked_metrics, axis=0)
+        max_metrics = np.max(stacked_metrics, axis=0)
+
+        # Check if all runs are finished
+        all_finished = all(m.finished for m in metrics_list)
+
+        # Create MetricDataBO objects for mean, min, and max
+        mean_data = MetricDataBO(
+            metric_data=mean_metrics,
+            steps=reference.steps,
+            datapasses=reference.datapasses,
+            cum_times=mean_cum_times,
+            finished=all_finished,
+            metric_name=reference.metric_name,
+            num_acquisitions=reference.num_acquisitions,
+        )
+
+        min_data = MetricDataBO(
+            metric_data=min_metrics,
+            steps=reference.steps,
+            datapasses=reference.datapasses,
+            cum_times=mean_cum_times,  # Using the same mean cum_times for all
+            finished=all_finished,
+            metric_name=reference.metric_name,
+            num_acquisitions=reference.num_acquisitions,
+        )
+
+        max_data = MetricDataBO(
+            metric_data=max_metrics,
+            steps=reference.steps,
+            datapasses=reference.datapasses,
+            cum_times=mean_cum_times,  # Using the same mean cum_times for all
+            finished=all_finished,
+            metric_name=reference.metric_name,
+            num_acquisitions=reference.num_acquisitions,
+        )
+
+        return mean_data, min_data, max_data
