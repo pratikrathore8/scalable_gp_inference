@@ -116,6 +116,7 @@ if __name__ == "__main__":
     _do_plotting_for_metric(
         ["yolanda", "song", "acsincome"], METRICS, (2, 3), "all_appendix"
     )
+    _do_plotting_for_metric(["yolanda", "song"], ["train_rmse"], (1, 2), "all_appendix")
 
     # Make plot for intro
     filter_criteria_list = [
