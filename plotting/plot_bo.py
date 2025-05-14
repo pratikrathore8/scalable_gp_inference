@@ -1,5 +1,10 @@
-from constants import BASE_SAVE_DIR, SAVE_EXTENSION, PROJECT_NAME_BASE_BO, FONTSIZE
-from utils import (
+from plotting.constants import (
+    BASE_SAVE_DIR,
+    SAVE_EXTENSION,
+    PROJECT_NAME_BASE_BO,
+    FONTSIZE,
+)
+from plotting.utils import (
     render_in_latex,
     set_fontsize,
     get_save_path,
@@ -35,8 +40,12 @@ def _do_plotting_for_metric(lengthscale: float, metric: str):
         runs_split[seed_key].append(run)
 
     statistics_dicts = {}
+    colors_dict = {}
     for seed_key, runs in runs_split.items():
-        metrics_dict, colors_dict = get_metrics_and_colors(runs, metric)
+        metrics_dict, colors_dict_temp = get_metrics_and_colors(runs, metric)
+        colors_dict.update(
+            colors_dict_temp
+        )  # update the colors_dict with the new colors to cover all optimizers
         statistics_dicts[seed_key] = get_metric_statistics(metrics_dict)
 
     save_path = get_save_path(

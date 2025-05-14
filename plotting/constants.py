@@ -17,7 +17,7 @@ X_AXIS_NAME_MAP = {
     "iterations": "Iterations",
     "time": "Time (s)",
     "num_acquisitions": "Number of Acquisitions",
-    "devices": "Number of Devices",
+    "num_gpus": "Number of GPUs",
 }
 TIMING_PLOT_COLOR = "tab:blue"
 BOUND_FILL = 0.2

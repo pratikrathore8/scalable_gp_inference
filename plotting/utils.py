@@ -314,6 +314,13 @@ def plot_metric_statistics(
     for i, (dataset, statistics_dict) in enumerate(list(statistics_dicts.items())):
         ax = _get_axis(axes, i, cols)
 
+        # Get dataset up to first underscore -- this is useful for plot_gp_inf.py
+        # NOTE(pratik): This is a hack to get the dataset name from the
+        # statistics_dict key. It assumes that the dataset name is the first
+        # part of the key before the first underscore.
+        # This is not a good way to do this, but it works for now.
+        dataset = dataset.split("_")[0]
+
         dataset_size = size_dict.get(dataset, None)
 
         _plot_metric_statistics_helper(
@@ -414,7 +421,7 @@ def plot_parallel_scaling(
     ax.set_xlim(min_devices - 0.5, max_devices + 0.5)
 
     # Add labels and title
-    ax.set_xlabel(X_AXIS_NAME_MAP["devices"])
+    ax.set_xlabel(X_AXIS_NAME_MAP["num_gpus"])
     ax.set_ylabel("Speedup")
     ax.set_title(_get_title(dataset, dataset_size))
 
@@ -522,6 +529,13 @@ def bar_metric_statistics(
     # Plot each dataset
     for i, (dataset, statistics_dict) in enumerate(list(statistics_dicts.items())):
         ax = _get_axis(axes, i, cols)
+
+        # Get dataset up to first underscore -- this is useful for plot_gp_inf.py
+        # NOTE(pratik): This is a hack to get the dataset name from the
+        # statistics_dict key. It assumes that the dataset name is the first
+        # part of the key before the first underscore.
+        # This is not a good way to do this, but it works for now.
+        dataset = dataset.split("_")[0]
 
         dataset_size = size_dict.get(dataset, None)
 
