@@ -1,6 +1,6 @@
 import os
 import re
-import warnings
+from warnings import warn
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,24 +26,20 @@ def render_in_latex():
     plt.rcParams.update({"text.usetex": True, "font.family": "serif"})
 
 
-def set_fontsize(fontsize):
+def set_fontsize(fontsize: int):
     plt.rcParams.update({"font.size": fontsize})
 
 
-def get_save_path(save_dir, save_name):
+def get_save_path(save_dir: str, save_name: str) -> str | None:
     if save_dir is not None and save_name is not None:
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         return os.path.join(save_dir, save_name)
     elif save_dir is not None and save_name is None:
-        warnings.warn(
-            "Must provide save_name if save_dir is provided. Plot will not be saved."
-        )
+        warn("Must provide save_name if save_dir is provided. Plot will not be saved.")
         return None
     elif save_dir is None and save_name is not None:
-        warnings.warn(
-            "Must provide save_dir if save_name is provided. Plot will not be saved."
-        )
+        warn("Must provide save_dir if save_name is provided. Plot will not be saved.")
         return None
     else:
         return None
@@ -127,9 +123,7 @@ def get_metric_statistics(
     for opt_name, metrics_list in metrics_dict.items():
         metric_statistics_class = metrics_list[0].__class__
         if not all(isinstance(m, metric_statistics_class) for m in metrics_list):
-            warnings.warn(
-                f"Skipping {opt_name} due to inconsistent metric data classes."
-            )
+            warn(f"Skipping {opt_name} due to inconsistent metric data classes.")
             continue
         mean_data, min_data, max_data = metric_statistics_class.compute_statistics(
             metrics_list
@@ -138,9 +132,7 @@ def get_metric_statistics(
         if (
             mean_data is None or min_data is None or max_data is None
         ) and skip_inconsistent:
-            warnings.warn(
-                f"Skipping {opt_name} due to inconsistent metric data across runs."
-            )
+            warn(f"Skipping {opt_name} due to inconsistent metric data across runs.")
             continue
 
         all_statistics[opt_name] = (mean_data, min_data, max_data)

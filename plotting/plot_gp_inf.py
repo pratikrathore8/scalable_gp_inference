@@ -1,9 +1,12 @@
+from typing import Callable
+
 from plotting.constants import (
     BASE_SAVE_DIR,
     SAVE_EXTENSION,
     PROJECT_NAME_BASE,
     FONTSIZE,
 )
+from plotting.run_classes import WandbRun
 from plotting.utils import (
     render_in_latex,
     set_fontsize,
@@ -20,11 +23,31 @@ METRICS = ["test_rmse", "test_posterior_samples_mean_nll"]
 X_AXIS_NAME = "time"
 
 
+def _filter_runs(
+    runs: list[WandbRun], filter_criteria_list: list[Callable]
+) -> list[WandbRun]:
+    """
+    Filter the runs based on the given criteria.
+    """
+    # If no filter criteria are provided, return all runs
+    if len(filter_criteria_list) == 0:
+        return runs
+
+    filtered_runs = []
+    for run in runs:
+        print(run.opt_name)
+        print(filter_criteria_list[0](run))
+        if all(filter_criteria(run) for filter_criteria in filter_criteria_list):
+            filtered_runs.append(run)
+    return filtered_runs
+
+
 def _do_plotting_for_metric(
     datasets: list[str],
     metrics: list[str],
     grid_size: tuple[int, int],
     subfolder_name: str,
+    run_filter_criteria: list[Callable] = [],
 ):
     """
     Plot the metric for the given datasets.
@@ -38,6 +61,7 @@ def _do_plotting_for_metric(
     # and the number of training points
     for dataset in datasets:
         runs = get_runs(PROJECT_NAME_BASE + dataset, mode="gp_inference")
+        runs = _filter_runs(runs, run_filter_criteria)
         runs_dict[dataset] = runs
         size_dict[dataset] = runs[0].run.config["ntr"]
 
@@ -86,7 +110,6 @@ if __name__ == "__main__":
     render_in_latex()
 
     # Plot the metrics for all datasets (besides taxi)
-    # for metric in METRICS:
     _do_plotting_for_metric(
         ["benzene", "malonaldehyde", "houseelec"], METRICS, (2, 3), "all_main"
     )
@@ -95,7 +118,16 @@ if __name__ == "__main__":
     )
 
     # Make plot for intro
-    _do_plotting_for_metric(["houseelec"], METRICS, (1, 2), "intro")
+    filter_criteria_list = [
+        lambda run: run.opt_name != r"\texttt{ADASAP-I}",
+    ]
+    _do_plotting_for_metric(
+        ["houseelec"],
+        METRICS,
+        (1, 2),
+        "intro",
+        run_filter_criteria=filter_criteria_list,
+    )
 
     # Also plot for taxi
     _do_plotting_for_metric(["taxi"], ["test_rmse"], (1, 1), "taxi")
