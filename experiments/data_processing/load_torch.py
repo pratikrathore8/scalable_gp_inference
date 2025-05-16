@@ -306,7 +306,7 @@ def load_torch_3droad(
     dtype: torch.dtype,
     device: torch.device,
 ) -> tuple[torch.Tensor]:
-    load_kwargs = {"target_column": 3, "drop_columns": [0]}
+    load_kwargs = {"target_column": 3}
     return _load_torch_uci(
         name="3droad",
         split_proportion=split_proportion,
