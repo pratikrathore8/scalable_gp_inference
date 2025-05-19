@@ -31,15 +31,31 @@ This shell script will generate a `.h5py` file for each month from January 2009 
 ### Running benchmark GP inference experiments
 Activate your python environment and run the following command:
 ```bash
-./run_gp_inference_experiments.sh 0
+./run_gp_inference_experiments.sh <seed>
 ```
 
-This will run the experiments with seed 0 on the devices specified in the `run_gp_inference_experiments.sh` script. You may have to change the device IDs in the script to match your setup. We run our experiments using 2 GPUs and seeds 0, 1, 2, 3, and 4.
+This will run the experiments with the specified seed on the devices specified in the `run_gp_inference_experiments.sh` script. You may have to change the device IDs in the script to match your setup. We run our experiments using 2 GPUs and seeds 0, 1, 2, 3, and 4.
 
 ### Running the taxi experiments
 Activate your python environment and run the following command:
 ```bash
-./run_gp_inference_experiments_taxi.sh 0
+./run_gp_inference_experiments_taxi.sh <seed>
 ```
 
-This will run the experiments with seed 0 on the devices specified in the `run_gp_inference_experiments_taxi.sh` script. You may have to change the device IDs in the script to match your setup. We run our experiments using 3 GPUs and seed 0.
+This will run the experiments with the specified seed on the devices specified in the `run_gp_inference_experiments_taxi.sh` script. You may have to change the device IDs in the script to match your setup. We run our experiments using 3 GPUs and seed 0.
+
+### Running the taxi timing experiments
+Activate your python environment and run the following command:
+```bash
+python experiments/gp_inference_dataset_seed.py --dataset taxi --seed <seed> --devices <device_ids> --timing
+```
+
+This will run the timing experiments on the taxi dataset with the specified seed on the devices specified in the command. You may have to change the device IDs in the command to match your setup. We run our experiments using 1, 2, 3, and 4 GPUs and seed 0.
+
+### Running the Bayesian optimization experiments
+Activate your python environment and run the following command:
+```bash
+python experiments/bayes_opt.py --lengthscale <lengthscale> --seed <seed> --device <device_id>
+```
+
+This will run the Bayesian optimization experiments with the specified lengthscale and seed on the device specified in the command. We run our experiments using lengthscales 2.0 and 3.0, 1 GPU, and seeds 0, 1, 2, 3, and 4.
