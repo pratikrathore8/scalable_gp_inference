@@ -27,8 +27,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.10",
-    install_requires=parse_requirements("requirements.txt")
-    + [
-        "rlaopt @ git+https://github.com/udellgroup/rlaopt.git@689902c7af366fa99d04434cbb639e63073c0bf8"  # noqa: E501
-    ],
+    install_requires=parse_requirements("requirements.txt"),
 )
