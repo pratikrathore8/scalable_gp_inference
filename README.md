@@ -9,6 +9,8 @@ To set up the environment, clone the repo, `cd` into the root of the repo, and r
 pip install -e .
 ```
 
+You will also have to `pip install` the anonymized version of the `rlaopt` package (which is also being developed by the authors) from [this anonymized repo](https://anonymous.4open.science/r/rlaopt-anon).
+
 Please make sure that `pykeops` and `keopscore` are both installed with version `2.2.3`. We have found version `2.3` to be too slow for some of our experiments (particularly Bayesian optimization).
 
 If you are developing the code, you should also run
