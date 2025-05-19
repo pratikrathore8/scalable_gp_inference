@@ -1,4 +1,8 @@
-# scalable_gp_inference
+# Turbocharging GP Inference
+
+Companion code for "Turbocharing Gaussian Process Inference with Approximate Sketch-and-Project".
+
+## Setting up the environment
 Make sure you are using Python 3.10 or later.
 To set up the environment, run the following command in a `python` virtual environment:
 ```bash
@@ -11,3 +15,5 @@ If you are developing the code, you should also run
 ```bash
 pre-commit install
 ```
+
+## Reproducing the experiments
