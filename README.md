@@ -59,3 +59,19 @@ python experiments/bayes_opt.py --lengthscale <lengthscale> --seed <seed> --devi
 ```
 
 This will run the Bayesian optimization experiments with the specified lengthscale and seed on the device specified in the command. We run our experiments using lengthscales 2.0 and 3.0, 1 GPU, and seeds 0, 1, 2, 3, and 4.
+
+## Citation
+
+If you find our work useful, please consider citing our paper:
+
+```
+@article{rathore2025turbocharging,
+  title={Turbocharging Gaussian Process Inference with Approximate Sketch-and-Project},
+  author={Pratik Rathore and Zachary Frangella and Sachin Garg and Shaghayegh Fazliani and Michał Dereziński and Madeleine Udell},
+  journal={arXiv preprint arXiv:2505.13723},
+  year={2025}
+}
+```
+
+## License
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
