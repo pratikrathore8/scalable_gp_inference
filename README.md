@@ -24,7 +24,7 @@ The experiments are configured to automatically log to Weights & Biases.
 ### Downloading the datasets
 Run `python experiments/download_data.py` to download all datasets (besides taxi).
 
-To get the taxi dataset, please follow the instructions in this fork of the [nyc-taxi-data repo](https://anonymous.4open.science/r/nyc-taxi-data). Run `filter_runs.py` and `yellow_taxi_processing.sh` (NOTE: you may have to turn off the move to Google Drive step in this shell script) in this repo.
+To get the taxi dataset, please follow the instructions in this fork of the [nyc-taxi-data repo](https://github.com/pratikrathore8/nyc-taxi-data). Run `filter_runs.py` and `yellow_taxi_processing.sh` (NOTE: you may have to turn off the move to Google Drive step in this shell script) in this repo.
 
 This shell script will generate a `.h5py` file for each month from January 2009 to December 2015. Move these files to a new folder `scalable_gp_inference/data/taxi` and run `python experiments/taxi_processing.py` to process the data.
 
@@ -59,6 +59,16 @@ python experiments/bayes_opt.py --lengthscale <lengthscale> --seed <seed> --devi
 ```
 
 This will run the Bayesian optimization experiments with the specified lengthscale and seed on the device specified in the command. We run our experiments using lengthscales 2.0 and 3.0, 1 GPU, and seeds 0, 1, 2, 3, and 4.
+
+## Instructions for reproducing the figures/tables
+> [!IMPORTANT]
+> You will have to change `ENTITY_NAME` in `plotting/constants.py` to your Weights & Biases entity name.
+
+To reproduce the figures/tables in the paper, you can use the following Python scripts and Jupyter notebooks:
+- `plotting/plot_gp_inf.py`: This script generates the plots for the GP inference experiments.
+- `plotting/plot_parallel_scaling.py`: This script generates the plots for the parallel scaling experiments on the taxi dataset.
+- `plotting/gp_inf_table.ipynb`: This Jupyter notebook generates the table for the GP inference experiments.
+- `plotting/bo_table.ipynb`: This Jupyter notebook generates the table for the Bayesian optimization experiments.
 
 ## Citation
 
