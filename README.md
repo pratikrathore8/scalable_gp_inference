@@ -1,6 +1,6 @@
 # Turbocharging GP Inference
 
-Companion code for "Turbocharging Gaussian Process Inference with Approximate Sketch-and-Project".
+Companion code for [***"Turbocharging Gaussian Process Inference with Approximate Sketch-and-Project"***](https://arxiv.org/abs/2505.13723).
 
 ## Setting up the environment
 Make sure you are using Python 3.10 or later.
