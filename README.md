@@ -60,7 +60,7 @@ python experiments/bayes_opt.py --lengthscale <lengthscale> --seed <seed> --devi
 
 This will run the Bayesian optimization experiments with the specified lengthscale and seed on the device specified in the command. We run our experiments using lengthscales 2.0 and 3.0, 1 GPU, and seeds 0, 1, 2, 3, and 4.
 
-### Instructions for reproducing the figures
+## Instructions for reproducing the figures
 > [!IMPORTANT]
 > You will have to change `ENTITY_NAME` in `plotting/constants.py` to your Weights & Biases entity name.
 
