@@ -60,6 +60,9 @@ python experiments/bayes_opt.py --lengthscale <lengthscale> --seed <seed> --devi
 
 This will run the Bayesian optimization experiments with the specified lengthscale and seed on the device specified in the command. We run our experiments using lengthscales 2.0 and 3.0, 1 GPU, and seeds 0, 1, 2, 3, and 4.
 
+### Running the subspace convergence experiments
+Open the jupyter notebook `experiments/subspace_convergence.ipynb`. Use your python environment with this notebook and run all of the cells to generate the results. This notebook will also generate the subspace convergence figures that we show in the paper.
+
 ## Instructions for reproducing the figures/tables
 > [!IMPORTANT]
 > You will have to change `ENTITY_NAME` in `plotting/constants.py` to your Weights & Biases entity name.
